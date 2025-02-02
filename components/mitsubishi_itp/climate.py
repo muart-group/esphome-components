@@ -19,7 +19,6 @@ DEPENDENCIES = [
 CONF_UART_HEATPUMP = "uart_heatpump"
 CONF_UART_THERMOSTAT = "uart_thermostat"
 
-CONF_DISABLE_ACTIVE_MODE = "disable_active_mode"
 CONF_ENHANCED_MHK_SUPPORT = (
     "enhanced_mhk"  # EXPERIMENTAL. Will be set to default eventually.
 )
@@ -48,7 +47,6 @@ CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend(
         cv.Optional(CONF_CUSTOM_FAN_MODES, default=["VERYHIGH"]): cv.ensure_list(
             validate_custom_fan_modes
         ),
-        cv.Optional(CONF_DISABLE_ACTIVE_MODE, default=False): cv.boolean,
         cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
         cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
     }
@@ -119,9 +117,6 @@ async def to_code(config):
         cg.add(traits.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
 
     # Debug Settings
-    if dam_conf := config.get(CONF_DISABLE_ACTIVE_MODE):
-        cg.add(getattr(mitp_component, "set_active_mode")(not dam_conf))
-
     if enhanced_mhk_protocol := config.get(CONF_ENHANCED_MHK_SUPPORT):
         cg.add(
             getattr(mitp_component, "set_enhanced_mhk_support")(enhanced_mhk_protocol)

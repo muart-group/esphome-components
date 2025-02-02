@@ -78,9 +78,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Button triggers
   void reset_filter_status();
 
-  // Turns on or off actively sending packets
-  void set_active_mode(const bool active) { active_mode_ = active; };
-
   // Turns on or off Kumo emulation mode
   void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
 
@@ -175,9 +172,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   std::string current_temperature_source_;
   uint32_t last_received_temperature_ = millis();
   bool temperature_source_timeout_ = false;  // Has the current source timed out?
-
-  void send_if_active_(const Packet &packet);
-  bool active_mode_ = true;
 
   // used to track whether to support/handle the enhanced MHK protocol packets
   bool enhanced_mhk_support_ = false;
