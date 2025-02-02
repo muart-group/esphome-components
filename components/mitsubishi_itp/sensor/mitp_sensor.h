@@ -37,6 +37,11 @@ class ThermostatTemperatureSensor : public MITPSensor {
   void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
     mitp_sensor_state_ = packet.get_remote_temperature();
   }
+  void publish() override {
+    // Always publish thermostat temperature readings so that we can manage
+    // time between reports in the ESPHome config
+    publish_state(mitp_sensor_state_);
+  }
 };
 
 }  // namespace mitsubishi_itp
