@@ -36,12 +36,19 @@ class ThermostatHumiditySensor : public MITPSensor {
 class ThermostatTemperatureSensor : public MITPSensor {
   void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
     mitp_sensor_state_ = packet.get_remote_temperature();
+    force_next_publish_ = true;  // Set true to force publish even if value the same
   }
   void publish() override {
-    // Always publish thermostat temperature readings so that we can manage
-    // time between reports in the ESPHome config
-    publish_state(mitp_sensor_state_);
+    // Always publish if force_next_publish_ so that we can expose how often
+    // the thermostat is actually reporting values
+    if (!std::isnan(mitp_sensor_state_) && (mitp_sensor_state_ != state || force_next_publish_)) {
+      force_next_publish_ = false;
+      publish_state(mitp_sensor_state_);
+    }
   }
+
+ private:
+  bool force_next_publish_ = false;  // If true, will force a publish on next listener->publish() call
 };
 
 }  // namespace mitsubishi_itp
