@@ -59,7 +59,7 @@ class MITPUtils {
     return (uint8_t) value - 10;
   }
 
-  static float legacy_ts_room_temp_to_deg_c(cont uint8_t value) { 
+  static float legacy_ts_room_temp_to_deg_c(const uint8_t value) { 
     return 8 + ((float) value * 0.5f);
   }
 
