@@ -177,7 +177,7 @@ float RemoteTemperatureSetRequestPacket::get_remote_temperature() const {
 
   if (raw_temp_a == 0) {
     uint8_t raw_temp_legacy = pkt_.get_payload_byte(PLINDEX_LEGACY_REMOTE_TEMPERATURE);
-    return MITPUtils::legacy_room_temp_to_deg_c(raw_temp_legacy);
+    return MITPUtils::legacy_ts_room_temp_to_deg_c(raw_temp_legacy);
   }
 
   return MITPUtils::temp_scale_a_to_deg_c(raw_temp_a);
@@ -188,7 +188,7 @@ RemoteTemperatureSetRequestPacket &RemoteTemperatureSetRequestPacket::set_remote
   if (temperature_degrees_c < 63.5 && temperature_degrees_c > -64.0) {
     pkt_.set_payload_byte(PLINDEX_REMOTE_TEMPERATURE, MITPUtils::deg_c_to_temp_scale_a(temperature_degrees_c));
     pkt_.set_payload_byte(PLINDEX_LEGACY_REMOTE_TEMPERATURE,
-                          MITPUtils::deg_c_to_legacy_room_temp(temperature_degrees_c));
+                          MITPUtils::deg_c_to_legacy_ts_room_temp(temperature_degrees_c));
     set_flags(0x01);  // Set flags to say we're providing the temperature
   } else {
     ESP_LOGW(PTAG, "Remote temp %f is outside valid range.", temperature_degrees_c);
