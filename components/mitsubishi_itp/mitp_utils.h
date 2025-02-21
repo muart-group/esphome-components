@@ -46,15 +46,23 @@ class MITPUtils {
     return ((31 - (uint8_t) value) & 0xF) + (((int) (value * 2) % 2) << 4);
   }
 
-  static float legacy_room_temp_to_deg_c(const uint8_t value) { return (float) value + 10; }
+  static float legacy_hp_room_temp_to_deg_c(const uint8_t value) { return (float) value + 10; }
 
-  static uint8_t deg_c_to_legacy_room_temp(const float value) {
+  static uint8_t deg_c_to_legacy_hp_room_temp(const float value) {
     if (value < 10)
       return 0x00;
     if (value > 41)
       return 0x1F;
 
     return (uint8_t) value - 10;
+  }
+
+  static float legacy_ts_room_temp_to_deg_c(cont uint8_t value) { 
+    return 8 + ((float) value * 0.5f);
+  }
+
+  static uint8_t deg_c_to_legacy_ts_room_temp(const float value) {
+    return ((uint8_t) (2 * value)) - 16;
   }
 
  private:

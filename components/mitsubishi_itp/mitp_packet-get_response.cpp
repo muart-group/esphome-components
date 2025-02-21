@@ -86,7 +86,7 @@ float CurrentTempGetResponsePacket::get_current_temp() const {
   // TODO: Figure out how to handle "out of range" issues here.
   if (enhanced_raw_temp == 0) {
     uint8_t legacy_raw_temp = pkt_.get_payload_byte(PLINDEX_CURRENTTEMP_LEGACY);
-    return MITPUtils::legacy_room_temp_to_deg_c(legacy_raw_temp);
+    return MITPUtils::legacy_hp_room_temp_to_deg_c(legacy_raw_temp);
   }
 
   return MITPUtils::temp_scale_a_to_deg_c(enhanced_raw_temp);
