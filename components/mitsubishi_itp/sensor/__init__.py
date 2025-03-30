@@ -2,16 +2,19 @@ from esphome.components import sensor
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_OUTDOOR_TEMPERATURE,
+    DEVICE_CLASS_DURATION,
     DEVICE_CLASS_ENERGY,
     DEVICE_CLASS_FREQUENCY,
     DEVICE_CLASS_HUMIDITY,
     DEVICE_CLASS_POWER,
     DEVICE_CLASS_TEMPERATURE,
+    ENTITY_CATEGORY_DIAGNOSTIC,
     STATE_CLASS_MEASUREMENT,
     STATE_CLASS_TOTAL_INCREASING,
     UNIT_CELSIUS,
     UNIT_HERTZ,
     UNIT_KILOWATT_HOURS,
+    UNIT_MINUTE,
     UNIT_PERCENT,
     UNIT_WATT
 )
@@ -27,6 +30,7 @@ CONF_THERMOSTAT_HUMIDITY = "thermostat_humidity"
 CONF_THERMOSTAT_TEMPERATURE = "thermostat_temperature"
 CONF_INPUT_WATTS = "input_watts"
 CONF_LIFETIME_KWH = "lifetime_kwh"
+CONF_RUNTIME = "runtime"
 
 CompressorFrequencySensor = mitsubishi_itp_ns.class_(
     "CompressorFrequencySensor", sensor.Sensor
@@ -39,6 +43,9 @@ LifetimeKwhSensor = mitsubishi_itp_ns.class_(
 )
 OutdoorTemperatureSensor = mitsubishi_itp_ns.class_(
     "OutdoorTemperatureSensor", sensor.Sensor
+)
+RuntimeSensor = mitsubishi_itp_ns.class_(
+    "RuntimeSensor", sensor.Sensor
 )
 ThermostatHumiditySensor = mitsubishi_itp_ns.class_(
     "ThermostatHumiditySensor", sensor.Sensor
@@ -76,6 +83,14 @@ SENSORS = dict[str, cv.Schema](
             state_class=STATE_CLASS_MEASUREMENT,
             accuracy_decimals=1,
             icon="mdi:sun-thermometer-outline",
+        ),
+        CONF_RUNTIME: sensor.sensor_schema(
+            RuntimeSensor,
+            unit_of_measurement=UNIT_MINUTE,
+            device_class=DEVICE_CLASS_DURATION,
+            state_class=STATE_CLASS_TOTAL_INCREASING,
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            accuracy_decimals=0,
         ),
         CONF_THERMOSTAT_HUMIDITY: sensor.sensor_schema(
             ThermostatHumiditySensor,

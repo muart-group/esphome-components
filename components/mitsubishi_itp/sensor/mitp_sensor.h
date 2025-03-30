@@ -39,6 +39,12 @@ class OutdoorTemperatureSensor : public MITPSensor {
   void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
 };
 
+class RuntimeSensor : public MITPSensor {
+  void process_packet(const CurrentTempGetResponsePacket &packet) {
+    mitp_sensor_state_ = packet.get_runtime_minutes();
+  }
+};
+
 class ThermostatHumiditySensor : public MITPSensor {
   void process_packet(const ThermostatSensorStatusPacket &packet) {
     mitp_sensor_state_ = packet.get_indoor_humidity_percent();

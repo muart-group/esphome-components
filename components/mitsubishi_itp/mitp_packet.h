@@ -254,12 +254,14 @@ class CurrentTempGetResponsePacket : public Packet {
   static const int PLINDEX_CURRENTTEMP_LEGACY = 3;
   static const int PLINDEX_OUTDOORTEMP = 5;
   static const int PLINDEX_CURRENTTEMP = 6;
+  static const int PLINDEX_RUNTIME = 11; // to 13.
   using Packet::Packet;
 
  public:
   float get_current_temp() const;
   // Returns outdoor temperature or NAN if unsupported
   float get_outdoor_temp() const;
+  uint32_t get_runtime_minutes() const;
   std::string to_string() const override;
 };
 

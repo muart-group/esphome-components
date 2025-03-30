@@ -11,7 +11,8 @@ namespace mitsubishi_itp {
 std::string CurrentTempGetResponsePacket::to_string() const {
   return ("Current Temp Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE +
           "\n Temp:" + std::to_string(get_current_temp()) +
-          " Outdoor:" + (std::isnan(get_outdoor_temp()) ? "Unsupported" : std::to_string(get_outdoor_temp())));
+          " Outdoor:" + (std::isnan(get_outdoor_temp()) ? "Unsupported" : std::to_string(get_outdoor_temp())) +
+          " Runtime Mins: " + std::to_string(get_runtime_minutes()));
 }
 std::string SettingsGetResponsePacket::to_string() const {
   return ("Settings Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE + "\n Fan:" + format_hex(get_fan()) +
@@ -100,6 +101,12 @@ float CurrentTempGetResponsePacket::get_outdoor_temp() const {
 
   // Return NAN if unsupported
   return enhanced_raw_temp == 0 ? NAN : MITPUtils::temp_scale_a_to_deg_c(enhanced_raw_temp);
+}
+
+uint32_t CurrentTempGetResponsePacket:: get_runtime_minutes() const {
+  return pkt_.get_payload_byte(PLINDEX_RUNTIME) << 16 |
+         pkt_.get_payload_byte(PLINDEX_RUNTIME + 1) << 8 |
+         pkt_.get_payload_byte(PLINDEX_RUNTIME + 2);
 }
 
 // ErrorStateGetResponsePacket functions
