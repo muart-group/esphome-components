@@ -266,12 +266,16 @@ class CurrentTempGetResponsePacket : public Packet {
 class StatusGetResponsePacket : public Packet {
   static const int PLINDEX_COMPRESSOR_FREQUENCY = 3;
   static const int PLINDEX_OPERATING = 4;
+  static const int PLINDEX_INPUT_WATTS = 5; // and 6
+  static const int PLINDEX_LIFETIME_KWH = 7; // and 8
 
   using Packet::Packet;
 
  public:
   uint8_t get_compressor_frequency() const { return pkt_.get_payload_byte(PLINDEX_COMPRESSOR_FREQUENCY); }
   bool get_operating() const { return pkt_.get_payload_byte(PLINDEX_OPERATING); }
+  uint16_t get_input_watts() const { return pkt_.get_payload_byte(PLINDEX_INPUT_WATTS) << 8 | pkt_.get_payload_byte(PLINDEX_INPUT_WATTS + 1); }
+  float get_lifetime_kwh() const;
   std::string to_string() const override;
 };
 

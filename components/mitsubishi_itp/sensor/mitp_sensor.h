@@ -23,6 +23,18 @@ class CompressorFrequencySensor : public MITPSensor {
   void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
 };
 
+class InputWattsSensor : public MITPSensor {
+  void process_packet(const StatusGetResponsePacket &packet) {
+    mitp_sensor_state_ = packet.get_input_watts();
+  }
+};
+
+class LifetimeKwhSensor : public MITPSensor {
+  void process_packet(const StatusGetResponsePacket &packet) {
+    mitp_sensor_state_ = packet.get_lifetime_kwh();
+  }
+};
+
 class OutdoorTemperatureSensor : public MITPSensor {
   void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
 };
