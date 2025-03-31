@@ -254,24 +254,33 @@ class CurrentTempGetResponsePacket : public Packet {
   static const int PLINDEX_CURRENTTEMP_LEGACY = 3;
   static const int PLINDEX_OUTDOORTEMP = 5;
   static const int PLINDEX_CURRENTTEMP = 6;
+  static const int PLINDEX_RUNTIME = 11;  // to 13.
   using Packet::Packet;
 
  public:
   float get_current_temp() const;
   // Returns outdoor temperature or NAN if unsupported
   float get_outdoor_temp() const;
+  // Returns lifetime runtime minutes of unit
+  uint32_t get_runtime_minutes() const;
   std::string to_string() const override;
 };
 
 class StatusGetResponsePacket : public Packet {
   static const int PLINDEX_COMPRESSOR_FREQUENCY = 3;
   static const int PLINDEX_OPERATING = 4;
+  static const int PLINDEX_INPUT_WATTS = 5;   // and 6
+  static const int PLINDEX_LIFETIME_KWH = 7;  // and 8
 
   using Packet::Packet;
 
  public:
   uint8_t get_compressor_frequency() const { return pkt_.get_payload_byte(PLINDEX_COMPRESSOR_FREQUENCY); }
   bool get_operating() const { return pkt_.get_payload_byte(PLINDEX_OPERATING); }
+  uint16_t get_input_watts() const {
+    return pkt_.get_payload_byte(PLINDEX_INPUT_WATTS) << 8 | pkt_.get_payload_byte(PLINDEX_INPUT_WATTS + 1);
+  }
+  float get_lifetime_kwh() const;
   std::string to_string() const override;
 };
 

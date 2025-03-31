@@ -11,7 +11,8 @@ namespace mitsubishi_itp {
 std::string CurrentTempGetResponsePacket::to_string() const {
   return ("Current Temp Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE +
           "\n Temp:" + std::to_string(get_current_temp()) +
-          " Outdoor:" + (std::isnan(get_outdoor_temp()) ? "Unsupported" : std::to_string(get_outdoor_temp())));
+          " Outdoor:" + (std::isnan(get_outdoor_temp()) ? "Unsupported" : std::to_string(get_outdoor_temp())) +
+          " Runtime Mins: " + std::to_string(get_runtime_minutes()));
 }
 std::string SettingsGetResponsePacket::to_string() const {
   return ("Settings Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE + "\n Fan:" + format_hex(get_fan()) +
@@ -32,8 +33,11 @@ std::string RunStateGetResponsePacket::to_string() const {
           std::to_string(get_actual_fan_speed()) + ")" + " AutoMode:" + format_hex(get_auto_mode()));
 }
 std::string StatusGetResponsePacket::to_string() const {
-  return ("Status Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE + "\n CompressorFrequency: " +
-          std::to_string(get_compressor_frequency()) + " Operating: " + (get_operating() ? "Yes" : "No"));
+  return ("Status Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE +
+          "\n Compressor Frequency: " + std::to_string(get_compressor_frequency()) +
+          " Operating: " + (get_operating() ? "Yes" : "No")) +
+          " Input Watts: " + std::to_string(get_input_watts()) +
+          " Lifetime kWh: " + std::to_string(get_lifetime_kwh());
 }
 std::string ErrorStateGetResponsePacket::to_string() const {
   return ("Error State Response: " + Packet::to_string() + CONSOLE_COLOR_PURPLE +
@@ -99,6 +103,12 @@ float CurrentTempGetResponsePacket::get_outdoor_temp() const {
   return enhanced_raw_temp == 0 ? NAN : MITPUtils::temp_scale_a_to_deg_c(enhanced_raw_temp);
 }
 
+uint32_t CurrentTempGetResponsePacket:: get_runtime_minutes() const {
+  return pkt_.get_payload_byte(PLINDEX_RUNTIME) << 16 |
+         pkt_.get_payload_byte(PLINDEX_RUNTIME + 1) << 8 |
+         pkt_.get_payload_byte(PLINDEX_RUNTIME + 2);
+}
+
 // ErrorStateGetResponsePacket functions
 std::string ErrorStateGetResponsePacket::get_short_code() const {
   const char *upper_alphabet = "AbEFJLPU";
@@ -113,6 +123,12 @@ std::string ErrorStateGetResponsePacket::get_short_code() const {
   }
 
   return {upper_alphabet[(error_code & 0xE0) >> 5], lower_alphabet[low_bits]};
+}
+
+// StatusGetResponsePacket functions
+float StatusGetResponsePacket::get_lifetime_kwh() const {
+  uint16_t raw_value = pkt_.get_payload_byte(PLINDEX_LIFETIME_KWH) << 8 | pkt_.get_payload_byte(PLINDEX_LIFETIME_KWH + 1);
+  return (raw_value / 10.0f);
 }
 
 }  // namespace mitsubishi_itp
