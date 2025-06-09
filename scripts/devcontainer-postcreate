@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e
+
+git clone --depth 1 https://github.com/esphome/esphome.git /workspaces/esphome
+
+cd /workspaces/esphome
+
+script/devcontainer-post-create

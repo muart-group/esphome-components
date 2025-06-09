@@ -8,3 +8,13 @@ Aspirationally, the `main` branch will contain stable code ready to be merged to
 
 Once [this PR](https://github.com/esphome/esphome/pull/7289) is merged, bugs can be reported in the main ESPHome issue tracking repository.  Until then, all issues may be reported here.  (Experimental feature requests or exploration may still end up living here instead of in ESPHome, but we'll have to see)
 
+## Getting started with development
+
+The included devcontainer should take care of all the prerequisites.  In your testing ESPHome config file, you can reference your local version of this repository like:
+
+```yaml
+external_components:
+  - source:
+      type: local
+      path: /workspaces/muart-group/esphome-components/components
+```
