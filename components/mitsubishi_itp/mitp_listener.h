@@ -1,6 +1,6 @@
 #pragma once
 
-#include "itp_packet.h"
+#include "itp_packetprocessor.h"
 
 namespace esphome {
 namespace mitsubishi_itp {

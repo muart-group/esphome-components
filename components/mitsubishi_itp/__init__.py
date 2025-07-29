@@ -43,5 +43,5 @@ async def to_code(config):
     cg.add_library(
         name="itp-packet",
         repository="https://github.com/muart-group/itp-packet.git",
-        version="dev"
+        version="main"
     )
