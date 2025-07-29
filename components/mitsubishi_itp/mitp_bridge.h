@@ -1,8 +1,10 @@
 #pragma once
 
 #include "esphome/components/uart/uart.h"
-#include "mitp_packet.h"
+#include "itp_packet.h"
 #include "queue"
+
+using namespace itp_packet;
 
 namespace esphome {
 namespace mitsubishi_itp {

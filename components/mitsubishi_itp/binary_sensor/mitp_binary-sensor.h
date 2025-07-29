@@ -3,6 +3,8 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "../mitp_listener.h"
 
+using namespace itp_packet;
+
 namespace esphome {
 namespace mitsubishi_itp {
 
