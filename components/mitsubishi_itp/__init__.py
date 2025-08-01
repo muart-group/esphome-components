@@ -38,10 +38,3 @@ async def sensors_to_code(config, sensors, registration_function):
             await registration_function(sensor_component, sensor_conf)
 
             cg.add(getattr(mitp_component, "register_listener")(sensor_component))
-
-async def to_code(config):
-    cg.add_library(
-        name="itp-packet",
-        repository="https://github.com/muart-group/itp-packet.git",
-        version="main"
-    )

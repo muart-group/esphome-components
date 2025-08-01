@@ -123,3 +123,9 @@ async def to_code(config):
         )
     if rs_conf := config.get(CONF_RECALL_SETPOINT):
         cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
+
+    cg.add_library(
+        name="itp-packet",
+        repository="https://github.com/muart-group/itp-packet.git",
+        version="main"
+    )
