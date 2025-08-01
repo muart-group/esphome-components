@@ -124,8 +124,14 @@ async def to_code(config):
     if rs_conf := config.get(CONF_RECALL_SETPOINT):
         cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
 
-    cg.add_library(
-        name="itp-packet",
-        repository="https://github.com/muart-group/itp-packet.git",
-        version="main"
-    )
+    try:
+        cg.add_library(
+            name="itp-packet",
+            repository="https://github.com/muart-group/itp-packet.git",
+            version="main",
+        )
+    except ValueError as e:
+        # If a library is manually defined in the ESPHome config it will "conflict"
+        # Catching this here prevents this method from stopping codegen and the process
+        # will proceed with only the config library. This may break if there is another ValueError here.
+        print(f"Didn't add public itp-packet library due to:{e}")
