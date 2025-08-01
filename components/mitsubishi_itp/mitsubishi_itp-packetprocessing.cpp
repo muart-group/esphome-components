@@ -261,8 +261,18 @@ void MitsubishiUART::process_packet(const RemoteTemperatureSetRequestPacket &pac
   ts_bridge_->send_packet(SetResponsePacket());
   alert_listeners_(packet);
 
-  float t = packet.get_remote_temperature();
-  temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
+  // If the thermostat has requested using the internal sensor, that packet has been sent to
+  // the heat pump and so we will be (at least for the moment) using the internal sensor.
+  // Let listeners know this has happened, but do not change the selected_temperature_source
+  // (so we can change back if a new report comes in)
+  if (packet.get_use_internal_temperature()) {
+    for (auto *listener : listeners_) {
+      listener->temperature_source_change(TEMPERATURE_SOURCE_INTERNAL);
+    }
+  } else {
+    float t = packet.get_remote_temperature();
+    temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
+  }
 }
 
 void MitsubishiUART::process_packet(const ThermostatSensorStatusPacket &packet) {

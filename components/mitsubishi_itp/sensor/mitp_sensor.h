@@ -49,8 +49,10 @@ class ThermostatHumiditySensor : public MITPSensor {
 
 class ThermostatTemperatureSensor : public MITPSensor {
   void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
-    mitp_sensor_state_ = packet.get_remote_temperature();
-    force_next_publish_ = true;  // Set true to force publish even if value the same
+    if (!packet.get_use_internal_temperature()) {
+      mitp_sensor_state_ = packet.get_remote_temperature();
+      force_next_publish_ = true;  // Set true to force publish even if value the same
+    }
   }
   void publish() override {
     // Always publish if force_next_publish_ so that we can expose how often
