@@ -6,6 +6,7 @@ from esphome.const import CONF_ID
 CODEOWNERS = ["@Sammy1Am", "@KazWolfe"]
 
 mitsubishi_itp_ns = cg.esphome_ns.namespace("mitsubishi_itp")
+itp_packet_ns = cg.esphome_ns.namespace("itp_packet")
 MitsubishiUART = mitsubishi_itp_ns.class_(
     "MitsubishiUART", cg.PollingComponent, climate.Climate
 )

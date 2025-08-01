@@ -10,7 +10,7 @@ from esphome.const import (
 )
 from esphome.core import coroutine
 
-from . import MitsubishiUART, mitsubishi_itp_ns
+from . import MitsubishiUART, itp_packet_ns
 
 DEPENDENCIES = [
     "uart",
@@ -28,7 +28,7 @@ DEFAULT_POLLING_INTERVAL = "5s"
 
 DEFAULT_CLIMATE_MODES = ["OFF", "HEAT", "DRY", "COOL", "FAN_ONLY", "HEAT_COOL"]
 DEFAULT_FAN_MODES = ["AUTO", "QUIET", "LOW", "MEDIUM", "HIGH"]
-CUSTOM_FAN_MODES = {"VERYHIGH": mitsubishi_itp_ns.FAN_MODE_VERYHIGH}
+CUSTOM_FAN_MODES = {"VERYHIGH": itp_packet_ns.FAN_MODE_VERYHIGH}
 
 validate_custom_fan_modes = cv.enum(CUSTOM_FAN_MODES, upper=True)
 
@@ -123,3 +123,9 @@ async def to_code(config):
         )
     if rs_conf := config.get(CONF_RECALL_SETPOINT):
         cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
+
+    cg.add_library(
+        name="itp-packet",
+        repository="https://github.com/muart-group/itp-packet.git",
+        version="main"
+    )

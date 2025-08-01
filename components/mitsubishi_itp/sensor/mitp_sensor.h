@@ -3,6 +3,8 @@
 #include "esphome/components/sensor/sensor.h"
 #include "../mitp_listener.h"
 
+using namespace itp_packet;
+
 namespace esphome {
 namespace mitsubishi_itp {
 
@@ -24,15 +26,11 @@ class CompressorFrequencySensor : public MITPSensor {
 };
 
 class InputWattsSensor : public MITPSensor {
-  void process_packet(const StatusGetResponsePacket &packet) {
-    mitp_sensor_state_ = packet.get_input_watts();
-  }
+  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
 };
 
 class LifetimeKwhSensor : public MITPSensor {
-  void process_packet(const StatusGetResponsePacket &packet) {
-    mitp_sensor_state_ = packet.get_lifetime_kwh();
-  }
+  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
 };
 
 class OutdoorTemperatureSensor : public MITPSensor {
@@ -40,9 +38,7 @@ class OutdoorTemperatureSensor : public MITPSensor {
 };
 
 class RuntimeSensor : public MITPSensor {
-  void process_packet(const CurrentTempGetResponsePacket &packet) {
-    mitp_sensor_state_ = packet.get_runtime_minutes();
-  }
+  void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
 };
 
 class ThermostatHumiditySensor : public MITPSensor {

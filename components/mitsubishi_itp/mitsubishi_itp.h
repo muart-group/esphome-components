@@ -8,10 +8,13 @@
 #endif
 #include "esphome/components/climate/climate.h"
 #include "mitp_listener.h"
-#include "mitp_packet.h"
+#include "itp_packets.h"
+#include "itp_packetprocessor.h"
 #include "mitp_bridge.h"
 #include "mitp_mhk.h"
 #include <map>
+
+using namespace itp_packet;
 
 namespace esphome {
 namespace mitsubishi_itp {

@@ -344,14 +344,14 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 
 #ifdef USE_TIME
   if (this->time_source_ != nullptr) {
-    response.set_timestamp(this->time_source_->now());
+    response.set_timestamp(this->time_source_->now().timestamp);
   } else {
     ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-    response.set_timestamp(ESPTime::from_epoch_utc(1704067200));  // 2024-01-01 00:00:00Z
+    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
   }
 #else
   ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-  response.set_timestamp(ESPTime::from_epoch_utc(1704067200));  // 2024-01-01 00:00:00Z
+  response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
 #endif
 
   ts_bridge_->send_packet(response);

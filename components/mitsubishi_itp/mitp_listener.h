@@ -1,13 +1,13 @@
 #pragma once
 
-#include "mitp_packet.h"
+#include "itp_packetprocessor.h"
 
 namespace esphome {
 namespace mitsubishi_itp {
 
 static constexpr char LISTENER_TAG[] = "mitsubishi_itp.listener";
 
-class MITPListener : public PacketProcessor {
+class MITPListener : public itp_packet::PacketProcessor {
  public:
   virtual void publish() = 0;  // Publish only if the underlying state has changed
 
