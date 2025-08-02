@@ -177,9 +177,15 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   }
 
   // Temperature select extras
-  std::string selected_temperature_source_;
-  uint32_t last_received_temperature_ = millis();
+  struct TemperatureReport {
+    float temperature;
+    uint32_t timestamp;  // From millis() (not actual time)
+  };
+
+  // Initialize to internal so this isn't undefined
+  std::string selected_temperature_source_ = TEMPERATURE_SOURCE_INTERNAL;
   bool temperature_source_timeout_ = false;  // Has the current source timed out?
+  std::map<std::string, TemperatureReport> temperature_reports_;
 
   // used to track whether to support/handle the enhanced MHK protocol packets
   bool enhanced_mhk_support_ = false;
