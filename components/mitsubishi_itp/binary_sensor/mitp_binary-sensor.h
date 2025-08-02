@@ -38,5 +38,9 @@ class ISeeStatusSensor : public MITPBinarySensor {
   }
 };
 
+class UsingInternalTemperatureSensor : public MITPBinarySensor {
+  void using_internal_temperature(const bool using_internal) { mitp_binary_sensor_state_ = using_internal; }
+};
+
 }  // namespace mitsubishi_itp
 }  // namespace esphome
