@@ -165,9 +165,14 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Listener-sensors
   std::vector<MITPListener *> listeners_{};
-  template<typename T> void alert_listeners_(const T &packet) const {
+  template<typename T> void alert_listeners_packet_(const T &packet) const {
     for (auto *listener : this->listeners_) {
       listener->process_packet(packet);
+    }
+  }
+  void alert_listeners_internal_temp_(const bool using_internal) const {
+    for (auto *listener : this->listeners_) {
+      listener->using_internal_temperature(using_internal);
     }
   }
 

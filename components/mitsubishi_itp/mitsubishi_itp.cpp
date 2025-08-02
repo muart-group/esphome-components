@@ -74,9 +74,7 @@ void MitsubishiUART::loop() {
                selected_temperature_source_.c_str(), (unsigned long) TEMPERATURE_SOURCE_TIMEOUT_MS);
       // Let listeners know we've changed to the Internal temperature source (but do not change
       // selected_temperature_source)
-      for (auto *listener : listeners_) {
-        listener->using_internal_temperature(true);
-      }
+      alert_listeners_internal_temp_(true);
       temperature_source_timeout_ = true;
       // Send a packet to the heat pump to tell it to switch to internal temperature sensing
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
@@ -186,14 +184,10 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
 
   // If we've switched to internal, let the HP know right away
   if (TEMPERATURE_SOURCE_INTERNAL == state) {
-    for (auto *listener : listeners_) {
-      listener->using_internal_temperature(true);
-    }
+    alert_listeners_internal_temp_(true);
     hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
   } else {
-    for (auto *listener : listeners_) {
-      listener->using_internal_temperature(false);
-    }
+    alert_listeners_internal_temp_(false);
   }
 
   return true;
@@ -282,9 +276,7 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
     hp_bridge_.send_packet(pkt);
 
     // If we've sent a remote temperature, we're not using the internal one
-    for (auto *listener : listeners_) {
-      listener->using_internal_temperature(false);
-    }
+    alert_listeners_internal_temp_(false);
   }
 }
 
