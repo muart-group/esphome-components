@@ -1,7 +1,12 @@
 import esphome.codegen as cg
 from esphome.components import select, sensor
 import esphome.config_validation as cv
-from esphome.const import CONF_ID, ENTITY_CATEGORY_CONFIG, ENTITY_CATEGORY_NONE
+from esphome.const import (
+    CONF_ID,
+    ENTITY_CATEGORY_CONFIG,
+    ENTITY_CATEGORY_NONE,
+    CONF_TIMEOUT,
+)
 from esphome.core import coroutine
 
 from ...mitsubishi_itp import CONF_MITSUBISHI_ITP_ID, MitsubishiUART, mitsubishi_itp_ns
@@ -10,6 +15,7 @@ CONF_TEMPERATURE_SOURCE = (
     "temperature_source"  # This is to create a Select object for selecting a source
 )
 CONF_SOURCES = "sources"  # This is for specifying additional sources
+CONF_ECHO_INTERVAL = "echo_interval"
 CONF_VANE_POSITION = "vane_position"
 CONF_HORIZONTAL_VANE_POSITION = "horizontal_vane_position"
 
@@ -34,7 +40,27 @@ SELECTS = {
             {
                 cv.Optional(CONF_SOURCES, default=[]): cv.ensure_list(
                     cv.use_id(sensor.Sensor)
-                )
+                ),
+                cv.Optional(CONF_TIMEOUT, default="8min"): cv.All(
+                    cv.positive_time_period_seconds,
+                    cv.Range(
+                        min=cv.TimePeriod(seconds=20), max=cv.TimePeriod(minutes=60)
+                    ),
+                ),
+                cv.Optional(CONF_ECHO_INTERVAL, default="0s"): cv.All(
+                    cv.positive_time_period_seconds,
+                    cv.Any(
+                        # TODO: This is silly, but I can't figure out how else to include 0
+                        cv.Range(
+                            min=cv.TimePeriod(seconds=0),
+                            max=cv.TimePeriod(seconds=0),
+                        ),
+                        cv.Range(
+                            min=cv.TimePeriod(seconds=9),
+                            max=cv.TimePeriod(minutes=30),
+                        ),
+                    ),
+                ),
             }
         ),
         [mitsubishi_itp_ns.TEMPERATURE_SOURCE_INTERNAL],
@@ -74,7 +100,7 @@ CONFIG_SCHEMA = cv.Schema(
 
 @coroutine
 async def to_code(config):
-    muart_component = await cg.get_variable(config[CONF_MITSUBISHI_ITP_ID])
+    mitp_component = await cg.get_variable(config[CONF_MITSUBISHI_ITP_ID])
 
     # Register selects
     for select_designator, (
@@ -83,7 +109,7 @@ async def to_code(config):
     ) in SELECTS.items():
         if select_conf := config.get(select_designator):
             select_component = cg.new_Pvariable(select_conf[CONF_ID])
-            cg.add(getattr(muart_component, "register_listener")(select_component))
+            cg.add(getattr(mitp_component, "register_listener")(select_component))
 
             if select_designator == CONF_TEMPERATURE_SOURCE:
                 # Add additional configured temperature sensors to the select menu
@@ -98,12 +124,30 @@ async def to_code(config):
                         getattr(ts, "add_on_state_callback")(
                             # TODO: Is there anyway to do this without a raw expression?
                             cg.RawExpression(
-                                f"[](float v){{{getattr(muart_component, 'temperature_source_report')}({ts.get_name()}, v);}}"
+                                f"[](float v){{{getattr(mitp_component, 'temperature_source_report')}({ts.get_name()}, v);}}"
                             )
                         )
                     )
+                # If timeout defined
+                if sts_conf := select_conf.get(CONF_TIMEOUT):
+                    cg.add(
+                        getattr(mitp_component, "set_temperature_source_timeout_ms")(
+                            cv.positive_time_period_milliseconds(
+                                sts_conf
+                            ).total_milliseconds
+                        )
+                    )
+                # If echo defined
+                if echo_conf := select_conf.get(CONF_ECHO_INTERVAL):
+                    cg.add(
+                        getattr(mitp_component, "set_temperature_source_echo_ms")(
+                            cv.positive_time_period_milliseconds(
+                                echo_conf
+                            ).total_milliseconds
+                        )
+                    )
 
-            await cg.register_parented(select_component, muart_component)
+            await cg.register_parented(select_component, mitp_component)
 
             await select.register_select(
                 select_component, select_conf, options=select_options
