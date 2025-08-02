@@ -32,25 +32,29 @@ CUSTOM_FAN_MODES = {"VERYHIGH": itp_packet_ns.FAN_MODE_VERYHIGH}
 
 validate_custom_fan_modes = cv.enum(CUSTOM_FAN_MODES, upper=True)
 
-CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend(
-    {
-        cv.GenerateID(CONF_ID): cv.declare_id(MitsubishiUART),
-        cv.Required(CONF_UART_HEATPUMP): cv.use_id(uart.UARTComponent),
-        cv.Optional(CONF_UART_THERMOSTAT): cv.use_id(uart.UARTComponent),
-        cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
-        cv.Optional(
-            CONF_SUPPORTED_MODES, default=DEFAULT_CLIMATE_MODES
-        ): cv.ensure_list(climate.validate_climate_mode),
-        cv.Optional(
-            CONF_SUPPORTED_FAN_MODES, default=DEFAULT_FAN_MODES
-        ): cv.ensure_list(climate.validate_climate_fan_mode),
-        cv.Optional(CONF_CUSTOM_FAN_MODES, default=["VERYHIGH"]): cv.ensure_list(
-            validate_custom_fan_modes
-        ),
-        cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
-        cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
-    }
-).extend(cv.polling_component_schema(DEFAULT_POLLING_INTERVAL))
+CONFIG_SCHEMA = (
+    climate.climate_schema(MitsubishiUART)
+    .extend(
+        {
+            cv.GenerateID(CONF_ID): cv.declare_id(MitsubishiUART),
+            cv.Required(CONF_UART_HEATPUMP): cv.use_id(uart.UARTComponent),
+            cv.Optional(CONF_UART_THERMOSTAT): cv.use_id(uart.UARTComponent),
+            cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
+            cv.Optional(
+                CONF_SUPPORTED_MODES, default=DEFAULT_CLIMATE_MODES
+            ): cv.ensure_list(climate.validate_climate_mode),
+            cv.Optional(
+                CONF_SUPPORTED_FAN_MODES, default=DEFAULT_FAN_MODES
+            ): cv.ensure_list(climate.validate_climate_fan_mode),
+            cv.Optional(CONF_CUSTOM_FAN_MODES, default=["VERYHIGH"]): cv.ensure_list(
+                validate_custom_fan_modes
+            ),
+            cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
+            cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
+        }
+    )
+    .extend(cv.polling_component_schema(DEFAULT_POLLING_INTERVAL))
+)
 
 
 def final_validate(config):
