@@ -172,8 +172,6 @@ void MitsubishiUART::do_publish_() {
 }
 
 bool MitsubishiUART::select_temperature_source(const std::string &state) {
-  // TODO: Possibly check to see if state is available from the select options?  (Might be a bit redundant)
-
   selected_temperature_source_ = state;
 
   // If we've switched to internal, let the HP know right away
@@ -181,8 +179,17 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
     alert_listeners_internal_temp_(true);
     hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
   } else {
-    // TODO: Immediately send temperature if it's available, otherwise don't change internal state
-    alert_listeners_internal_temp_(false);
+    // If we have a fresh temperature already, go ahead and send it immediately.
+    if (millis() - temperature_reports_[selected_temperature_source_].timestamp < TEMPERATURE_SOURCE_TIMEOUT_MS &&
+        !isnan(temperature_reports_[selected_temperature_source_].timestamp)) {
+      hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
+          temperature_reports_[selected_temperature_source_].temperature));
+      alert_listeners_internal_temp_(false);
+    } else {
+      // Otherwise, reset that report so it doesn't immediately timeout
+      temperature_reports_[selected_temperature_source_].timestamp = millis();
+      temperature_reports_[selected_temperature_source_].temperature = NAN;
+    }
   }
 
   return true;
@@ -248,12 +255,8 @@ bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
   return true;
 }
 
-// Called by temperature_source sensors to report values.  Will only take action if the currentTemperatureSource
-// matches the incoming source.  Specifically this means that we are not storing any values
-// for sensors other than the current source, and selecting a different source won't have any
-// effect until that source reports a temperature.
-// TODO: ? Maybe store all temperatures (and report on them using internal sensors??) so that selecting a new
-// source takes effect immediately?  Only really needed if source sensors are configured with very slow update times.
+// Called by temperature_source sensors, and packetprocessing to report new temperature values. Only
+// sends temperature information on to heat pump if it matches the current selected_temperature_source
 void MitsubishiUART::temperature_source_report(const std::string &temperature_source, const float &v) {
   ESP_LOGI(TAG, "Received temperature from %s of %f. (Current source: %s)", temperature_source.c_str(), v,
            selected_temperature_source_.c_str());

@@ -178,8 +178,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Temperature select extras
   struct TemperatureReport {
-    float temperature;
-    uint32_t timestamp;  // From millis() (not actual time)
+    float temperature = NAN;
+    uint32_t timestamp = 0;  // From millis() (not actual time)
   };
 
   // Initialize to internal so this isn't undefined
