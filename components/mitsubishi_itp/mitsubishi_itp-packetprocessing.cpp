@@ -256,20 +256,11 @@ void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
 void MitsubishiUART::process_packet(const RemoteTemperatureSetRequestPacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
-  // Immediately respond to thermostat (to keep it happy), and we'll send this info
-  // to the heat pump in temperature_source_report()
-  ts_bridge_->send_packet(SetResponsePacket());
-  alert_listeners_(packet);
+  ts_bridge_->send_packet(SetResponsePacket());  // Immediately respond to thermostat (to keep it happy)
+  alert_listeners_(packet);                      // Alert sensors of new temperature
 
-  // If the thermostat has requested using the internal sensor, that packet has been sent to
-  // the heat pump and so we will be (at least for the moment) using the internal sensor.
-  // Let listeners know this has happened, but do not change the selected_temperature_source
-  // (so we can change back if a new report comes in)
-  if (packet.get_use_internal_temperature()) {
-    for (auto *listener : listeners_) {
-      listener->temperature_source_change(TEMPERATURE_SOURCE_INTERNAL);
-    }
-  } else {
+  // Report the temperature only if the thermostat isn't requesting internal
+  if (!packet.get_use_internal_temperature()) {
     float t = packet.get_remote_temperature();
     temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
   }

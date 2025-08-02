@@ -33,10 +33,6 @@ void TemperatureSourceSelect::setup(bool thermostat_is_present) {
   }
 }
 
-void TemperatureSourceSelect::temperature_source_change(const std::string &temp_source) {
-  mitp_select_value_ = temp_source;
-}
-
 void TemperatureSourceSelect::register_temperature_source(const std::string &temperature_source_name) {
   temp_select_options_.push_back(temperature_source_name);
 }

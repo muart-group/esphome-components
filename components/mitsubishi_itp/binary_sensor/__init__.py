@@ -20,6 +20,9 @@ ISeeStatusSensor = mitsubishi_itp_ns.class_(
 )
 PreheatSensor = mitsubishi_itp_ns.class_("PreheatSensor", binary_sensor.BinarySensor)
 StandbySensor = mitsubishi_itp_ns.class_("StandbySensor", binary_sensor.BinarySensor)
+UsingInternalTemperatureSensor = mitsubishi_itp_ns.class_(
+    "UsingInternalTemperatureSensor", binary_sensor.BinarySensor
+)
 
 # TODO Storing the registration function here seems weird, but I can't figure out how to determine schema type later
 SENSORS = dict[str, cv.Schema](
@@ -38,6 +41,9 @@ SENSORS = dict[str, cv.Schema](
         ),
         "standby": binary_sensor.binary_sensor_schema(
             StandbySensor, icon="mdi:pause-circle-outline"
+        ),
+        "using_internal_temperature": binary_sensor.binary_sensor_schema(
+            UsingInternalTemperatureSensor, icon="mdi:thermometer-check"
         ),
     }
 )
