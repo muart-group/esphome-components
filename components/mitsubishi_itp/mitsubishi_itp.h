@@ -201,7 +201,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;
   // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_;
+  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_ = {0.0f};
 
   MHKState mhk_state_;
 
@@ -213,7 +213,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
 struct MITPPreferences {
   // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints;
+  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints = {0.0f};
 };
 
 }  // namespace mitsubishi_itp
