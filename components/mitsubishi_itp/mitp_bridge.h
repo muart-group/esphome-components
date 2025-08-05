@@ -22,8 +22,15 @@ class MITPBridge {
  public:
   MITPBridge(uart::UARTComponent *uart_component, PacketProcessor *packet_processor);
 
-  // Enqueues a packet to be sent
-  void send_packet(const Packet &packet_to_send);
+  /* Queues a packet to be sent by the bridge.  If the queue is full, the packet will not be
+  enqueued.*/
+  template<typename PacketType> void send_packet(const PacketType &packet_to_send) {
+    if (pkt_queue_.size() <= MAX_QUEUE_SIZE) {
+      pkt_queue_.push(std::make_unique<PacketType>(packet_to_send));
+    } else {
+      ESP_LOGW(BRIDGE_TAG, "Packet queue full!  %x packet not sent.", packet_to_send.get_packet_type());
+    }
+  }
 
   // Checks for incoming packets, processes them, sends queued packets
   virtual void loop() = 0;
@@ -37,8 +44,8 @@ class MITPBridge {
 
   uart::UARTComponent &uart_comp_;
   PacketProcessor &pkt_processor_;
-  std::queue<Packet> pkt_queue_;
-  optional<Packet> packet_awaiting_response_ = nullopt;
+  std::queue<std::unique_ptr<Packet>> pkt_queue_;
+  std::unique_ptr<Packet> packet_awaiting_response_ = nullptr;
   uint32_t packet_sent_millis_;
 };
 
