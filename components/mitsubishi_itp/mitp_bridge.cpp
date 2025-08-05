@@ -118,8 +118,16 @@ optional<RawPacket> MITPBridge::receive_raw_packet_(const SourceBridge source_br
   return RawPacket(packet_bytes, PACKET_HEADER_SIZE + payload_size + 1, source_bridge, controller_association);
 }
 
-template<class P> void MITPBridge::process_raw_packet_(RawPacket &pkt, bool expect_response) const {
-  P packet = P(std::move(pkt));
+template<class PType> void MITPBridge::process_raw_packet_(RawPacket &pkt, bool expect_response) const {
+  static_assert(std::is_base_of_v<Packet, PType>, "PType must derive from Packet");
+
+  PType packet = PType(std::move(pkt));
+
+  if (packet_awaiting_response_) {
+    // If this is a response, match up the sequence
+    packet.set_sequence(packet_awaiting_response_->get_sequence());
+  }
+
   packet.set_response_expected(expect_response);
   pkt_processor_.process_packet(packet);
 }

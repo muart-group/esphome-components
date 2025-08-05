@@ -24,11 +24,11 @@ class MITPBridge {
 
   /* Queues a packet to be sent by the bridge.  If the queue is full, the packet will not be
   enqueued.*/
-  template<typename PacketType> void send_packet(const PacketType &packet_to_send) {
-    static_assert(std::is_base_of_v<Packet, PacketType>, "PacketType must derive from Packet");
+  template<typename PType> void send_packet(const PType &packet_to_send) {
+    static_assert(std::is_base_of_v<Packet, PType>, "PType must derive from Packet");
 
     if (pkt_queue_.size() <= MAX_QUEUE_SIZE) {
-      pkt_queue_.push(std::make_unique<PacketType>(packet_to_send));
+      pkt_queue_.push(std::make_unique<PType>(packet_to_send));
     } else {
       ESP_LOGW(BRIDGE_TAG, "Packet queue full!  %x packet not sent.", packet_to_send.get_packet_type());
     }
