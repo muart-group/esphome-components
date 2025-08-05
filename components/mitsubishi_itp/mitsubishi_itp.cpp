@@ -270,6 +270,11 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
   ESP_LOGI(TAG, "Received temperature from %s of %f. (Current source: %s)", temperature_source.c_str(), v,
            selected_temperature_source_.c_str());
 
+  if (isnan(v) || v >= 63.5 || v <= -64.0) {
+    ESP_LOGW(TAG, "Temperature %f from %s is out of range and will be ignored.", v, temperature_source.c_str());
+    return;
+  }
+
   // Record report in map
   temperature_reports_[temperature_source].temperature = v;
   temperature_reports_[temperature_source].timestamp = millis();
