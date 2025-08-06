@@ -45,8 +45,8 @@ void HeatpumpBridge::loop() {
   } else if (packet_awaiting_response_ && (millis() - packet_sent_millis_ > RESPONSE_TIMEOUT_MS)) {
     // We've been waiting too long for a response, give up
     // TODO: We could potentially retry here, but that seems unnecessary
-    packet_awaiting_response_.reset();
     ESP_LOGW(BRIDGE_TAG, "Timeout waiting for response to %x packet.", packet_awaiting_response_->get_packet_type());
+    packet_awaiting_response_.reset();
   }
 }
 
