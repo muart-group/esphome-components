@@ -70,7 +70,7 @@ void MitsubishiUART::process_packet(const GetRequestPacket &packet) {
 void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 
   // Mode
 
@@ -159,7 +159,7 @@ void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
 void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
   // This will be the same as the remote temperature if we're using a remote sensor, otherwise the internal temp
   const float old_current_temperature = current_temperature;
   current_temperature = packet.get_current_temp();
@@ -170,7 +170,7 @@ void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) 
 void MitsubishiUART::process_packet(const StatusGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 
   const climate::ClimateAction old_action = action;
 
@@ -222,7 +222,7 @@ void MitsubishiUART::process_packet(const StatusGetResponsePacket &packet) {
 void MitsubishiUART::process_packet(const RunStateGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 
   run_state_received_ = true;  // Set this since we received one
 
@@ -232,7 +232,7 @@ void MitsubishiUART::process_packet(const RunStateGetResponsePacket &packet) {
 void MitsubishiUART::process_packet(const ErrorStateGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 }
 
 void MitsubishiUART::process_packet(const Functions1GetResponsePacket &packet) {
@@ -250,19 +250,20 @@ void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
 
   // forward this packet as-is; we're just intercepting to log.
   route_packet_(packet);
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 }
 
 void MitsubishiUART::process_packet(const RemoteTemperatureSetRequestPacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
-  // Immediately respond to thermostat (to keep it happy), and we'll send this info
-  // to the heat pump in temperature_source_report()
-  ts_bridge_->send_packet(SetResponsePacket());
-  alert_listeners_(packet);
+  ts_bridge_->send_packet(SetResponsePacket());  // Immediately respond to thermostat (to keep it happy)
+  alert_listeners_packet_(packet);               // Alert sensors of new temperature
 
-  float t = packet.get_remote_temperature();
-  temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
+  // Report the temperature only if the thermostat isn't requesting internal
+  if (!packet.get_use_internal_temperature()) {
+    float t = packet.get_remote_temperature();
+    temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
+  }
 }
 
 void MitsubishiUART::process_packet(const ThermostatSensorStatusPacket &packet) {
@@ -275,7 +276,7 @@ void MitsubishiUART::process_packet(const ThermostatSensorStatusPacket &packet) 
 
   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
 
-  alert_listeners_(packet);
+  alert_listeners_packet_(packet);
 
   ts_bridge_->send_packet(SetResponsePacket());
 }
@@ -344,14 +345,14 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 
 #ifdef USE_TIME
   if (this->time_source_ != nullptr) {
-    response.set_timestamp(this->time_source_->now());
+    response.set_timestamp(this->time_source_->now().timestamp);
   } else {
     ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-    response.set_timestamp(ESPTime::from_epoch_utc(1704067200));  // 2024-01-01 00:00:00Z
+    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
   }
 #else
   ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-  response.set_timestamp(ESPTime::from_epoch_utc(1704067200));  // 2024-01-01 00:00:00Z
+  response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
 #endif
 
   ts_bridge_->send_packet(response);

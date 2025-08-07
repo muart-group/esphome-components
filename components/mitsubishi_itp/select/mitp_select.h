@@ -26,7 +26,6 @@ class TemperatureSourceSelect : public MITPSelect {
  public:
   void publish() override;
   void setup(bool thermostat_is_present) override;
-  void temperature_source_change(const std::string &temp_source) override;
 
   // Adds an option to temperature_source_select_
   void register_temperature_source(const std::string &temperature_source_name);

@@ -3,6 +3,8 @@
 #include "esphome/components/binary_sensor/binary_sensor.h"
 #include "../mitp_listener.h"
 
+using namespace itp_packet;
+
 namespace esphome {
 namespace mitsubishi_itp {
 
@@ -34,6 +36,10 @@ class ISeeStatusSensor : public MITPBinarySensor {
   void process_packet(const SettingsGetResponsePacket &packet) {
     mitp_binary_sensor_state_ = packet.is_i_see_enabled();
   }
+};
+
+class UsingInternalTemperatureSensor : public MITPBinarySensor {
+  void using_internal_temperature(const bool using_internal) { mitp_binary_sensor_state_ = using_internal; }
 };
 
 }  // namespace mitsubishi_itp

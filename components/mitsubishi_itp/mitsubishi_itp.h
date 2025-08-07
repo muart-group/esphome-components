@@ -8,10 +8,13 @@
 #endif
 #include "esphome/components/climate/climate.h"
 #include "mitp_listener.h"
-#include "mitp_packet.h"
+#include "itp_packets.h"
+#include "itp_packetprocessor.h"
 #include "mitp_bridge.h"
 #include "mitp_mhk.h"
 #include <map>
+
+using namespace itp_packet;
 
 namespace esphome {
 namespace mitsubishi_itp {
@@ -24,8 +27,6 @@ const float MITP_TEMPERATURE_STEP = 0.5;
 
 const std::string TEMPERATURE_SOURCE_INTERNAL = "Internal";
 const std::string TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
-
-const uint32_t TEMPERATURE_SOURCE_TIMEOUT_MS = 420000;  // (7min) The heatpump will revert on its own in ~10min
 
 const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
 
@@ -65,6 +66,12 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Listener-sensors
   void register_listener(MITPListener *listener) { this->listeners_.push_back(listener); }
+
+  // Temperature Source config
+  void set_temperature_source_timeout_ms(const uint32_t timeout) { this->temperature_source_timout_ms_ = timeout; }
+  void set_temperature_source_echo_ms(const uint32_t echo_interval) {
+    this->temperature_source_echo_ms_ = echo_interval;
+  }
 
   // Returns true if select was valid (even if not yet successful) to indicate select component
   // should optimistically publish
@@ -162,16 +169,31 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Listener-sensors
   std::vector<MITPListener *> listeners_{};
-  template<typename T> void alert_listeners_(const T &packet) const {
+  template<typename T> void alert_listeners_packet_(const T &packet) const {
     for (auto *listener : this->listeners_) {
       listener->process_packet(packet);
     }
   }
+  void alert_listeners_internal_temp_(const bool using_internal) const {
+    for (auto *listener : this->listeners_) {
+      listener->using_internal_temperature(using_internal);
+    }
+  }
 
   // Temperature select extras
-  std::string current_temperature_source_;
-  uint32_t last_received_temperature_ = millis();
+  struct TemperatureReport {
+    float temperature = NAN;
+    uint32_t timestamp = 0;  // From millis() (not actual time)
+  };
+
+  // Initialize to internal so this isn't undefined
+  std::string selected_temperature_source_ = TEMPERATURE_SOURCE_INTERNAL;
   bool temperature_source_timeout_ = false;  // Has the current source timed out?
+  std::map<std::string, TemperatureReport> temperature_reports_;
+  uint32_t temperature_source_timout_ms_ =
+      420000;  // 7min default, some heat pumps revert on their own after 10min, some ~60seconds
+  uint32_t temperature_source_echo_ms_ = 0;              // 0 = off by default
+  uint32_t temperature_source_echo_last_timestamp_ = 0;  // Timestamp of last sent temperature
 
   // used to track whether to support/handle the enhanced MHK protocol packets
   bool enhanced_mhk_support_ = false;
@@ -179,7 +201,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;
   // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_;
+  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_ = {0.0f};
 
   MHKState mhk_state_;
 
@@ -191,7 +213,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
 struct MITPPreferences {
   // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints;
+  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints = {0.0f};
 };
 
 }  // namespace mitsubishi_itp

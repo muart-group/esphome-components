@@ -2,6 +2,9 @@
 
 #include "esphome/components/text_sensor/text_sensor.h"
 #include "../mitp_listener.h"
+#include "esphome/core/log.h"
+
+using namespace itp_packet;
 
 namespace esphome {
 namespace mitsubishi_itp {

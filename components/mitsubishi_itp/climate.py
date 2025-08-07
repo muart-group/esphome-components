@@ -10,7 +10,7 @@ from esphome.const import (
 )
 from esphome.core import coroutine
 
-from . import MitsubishiUART, mitsubishi_itp_ns
+from . import MitsubishiUART, itp_packet_ns
 
 DEPENDENCIES = [
     "uart",
@@ -28,29 +28,33 @@ DEFAULT_POLLING_INTERVAL = "5s"
 
 DEFAULT_CLIMATE_MODES = ["OFF", "HEAT", "DRY", "COOL", "FAN_ONLY", "HEAT_COOL"]
 DEFAULT_FAN_MODES = ["AUTO", "QUIET", "LOW", "MEDIUM", "HIGH"]
-CUSTOM_FAN_MODES = {"VERYHIGH": mitsubishi_itp_ns.FAN_MODE_VERYHIGH}
+CUSTOM_FAN_MODES = {"VERYHIGH": itp_packet_ns.FAN_MODE_VERYHIGH}
 
 validate_custom_fan_modes = cv.enum(CUSTOM_FAN_MODES, upper=True)
 
-CONFIG_SCHEMA = climate.CLIMATE_SCHEMA.extend(
-    {
-        cv.GenerateID(CONF_ID): cv.declare_id(MitsubishiUART),
-        cv.Required(CONF_UART_HEATPUMP): cv.use_id(uart.UARTComponent),
-        cv.Optional(CONF_UART_THERMOSTAT): cv.use_id(uart.UARTComponent),
-        cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
-        cv.Optional(
-            CONF_SUPPORTED_MODES, default=DEFAULT_CLIMATE_MODES
-        ): cv.ensure_list(climate.validate_climate_mode),
-        cv.Optional(
-            CONF_SUPPORTED_FAN_MODES, default=DEFAULT_FAN_MODES
-        ): cv.ensure_list(climate.validate_climate_fan_mode),
-        cv.Optional(CONF_CUSTOM_FAN_MODES, default=["VERYHIGH"]): cv.ensure_list(
-            validate_custom_fan_modes
-        ),
-        cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
-        cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
-    }
-).extend(cv.polling_component_schema(DEFAULT_POLLING_INTERVAL))
+CONFIG_SCHEMA = (
+    climate.climate_schema(MitsubishiUART)
+    .extend(
+        {
+            cv.GenerateID(CONF_ID): cv.declare_id(MitsubishiUART),
+            cv.Required(CONF_UART_HEATPUMP): cv.use_id(uart.UARTComponent),
+            cv.Optional(CONF_UART_THERMOSTAT): cv.use_id(uart.UARTComponent),
+            cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
+            cv.Optional(
+                CONF_SUPPORTED_MODES, default=DEFAULT_CLIMATE_MODES
+            ): cv.ensure_list(climate.validate_climate_mode),
+            cv.Optional(
+                CONF_SUPPORTED_FAN_MODES, default=DEFAULT_FAN_MODES
+            ): cv.ensure_list(climate.validate_climate_fan_mode),
+            cv.Optional(CONF_CUSTOM_FAN_MODES, default=["VERYHIGH"]): cv.ensure_list(
+                validate_custom_fan_modes
+            ),
+            cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
+            cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
+        }
+    )
+    .extend(cv.polling_component_schema(DEFAULT_POLLING_INTERVAL))
+)
 
 
 def final_validate(config):
@@ -123,3 +127,15 @@ async def to_code(config):
         )
     if rs_conf := config.get(CONF_RECALL_SETPOINT):
         cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
+
+    try:
+        cg.add_library(
+            name="itp-packet",
+            repository="https://github.com/muart-group/itp-packet.git",
+            version="main",
+        )
+    except ValueError as e:
+        # If a library is manually defined in the ESPHome config it will "conflict"
+        # Catching this here prevents this method from stopping codegen and the process
+        # will proceed with only the config library. This may break if there is another ValueError here.
+        print(f"Didn't add public itp-packet library due to:{e}")

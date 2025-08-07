@@ -9,10 +9,9 @@ MITPBridge::MITPBridge(uart::UARTComponent *uart_component, PacketProcessor *pac
 // The heatpump loop expects responses for most sent packets, so it tracks the last send packet and wait for a response
 void HeatpumpBridge::loop() {
   // Try to get a packet
-  if (optional<RawPacket> pkt = receive_raw_packet_(SourceBridge::HEATPUMP,
-                                                    packet_awaiting_response_.has_value()
-                                                        ? packet_awaiting_response_.value().get_controller_association()
-                                                        : ControllerAssociation::MITP)) {
+  if (optional<RawPacket> pkt = receive_raw_packet_(
+          SourceBridge::HEATPUMP, packet_awaiting_response_ ? packet_awaiting_response_->get_controller_association()
+                                                            : ControllerAssociation::MITP)) {
     ESP_LOGV(BRIDGE_TAG, "Parsing %x heatpump packet", pkt.value().get_packet_type());
     // Check the packet's checksum and either process it, or log an error
     if (pkt.value().is_checksum_valid()) {
@@ -26,29 +25,28 @@ void HeatpumpBridge::loop() {
     // If there was a packet waiting for a response, remove it.
     // TODO: This incoming packet wasn't *nessesarily* a response, but for now
     // it's probably not worth checking to make sure it matches.
-    if (packet_awaiting_response_.has_value()) {
+    if (packet_awaiting_response_) {
       packet_awaiting_response_.reset();
     }
-  } else if (!packet_awaiting_response_.has_value() && !pkt_queue_.empty()) {
+  } else if (!packet_awaiting_response_ && !pkt_queue_.empty()) {
     // If we're not waiting for a response and there's a packet in the queue...
 
-    // If the packet expects a response, add it to the awaitingResponse variable
-    if (pkt_queue_.front().is_response_expected()) {
-      packet_awaiting_response_ = pkt_queue_.front();
-    }
-
-    ESP_LOGV(BRIDGE_TAG, "Sending to heatpump %s", pkt_queue_.front().to_string().c_str());
-    write_raw_packet_(pkt_queue_.front().raw_packet());
+    ESP_LOGV(BRIDGE_TAG, "Sending to heatpump %s", pkt_queue_.front()->to_string().c_str());
+    write_raw_packet_(pkt_queue_.front()->raw_packet());
     packet_sent_millis_ = millis();
 
-    // Remove packet from queue
+    // If the packet expects a response, *move* it to the awaitingResponse variable
+    if (pkt_queue_.front()->is_response_expected()) {
+      packet_awaiting_response_ = std::move(pkt_queue_.front());
+    }
+
+    // Remove (now empty!) packet pointer from queue
     pkt_queue_.pop();
-  } else if (packet_awaiting_response_.has_value() && (millis() - packet_sent_millis_ > RESPONSE_TIMEOUT_MS)) {
+  } else if (packet_awaiting_response_ && (millis() - packet_sent_millis_ > RESPONSE_TIMEOUT_MS)) {
     // We've been waiting too long for a response, give up
     // TODO: We could potentially retry here, but that seems unnecessary
+    ESP_LOGW(BRIDGE_TAG, "Timeout waiting for response to %x packet.", packet_awaiting_response_->get_packet_type());
     packet_awaiting_response_.reset();
-    ESP_LOGW(BRIDGE_TAG, "Timeout waiting for response to %x packet.",
-             packet_awaiting_response_.value().get_packet_type());
   }
 }
 
@@ -68,22 +66,12 @@ void ThermostatBridge::loop() {
   } else if (!pkt_queue_.empty()) {
     // If there's a packet in the queue...
 
-    ESP_LOGV(BRIDGE_TAG, "Sending to thermostat %s", pkt_queue_.front().to_string().c_str());
-    write_raw_packet_(pkt_queue_.front().raw_packet());
+    ESP_LOGV(BRIDGE_TAG, "Sending to thermostat %s", pkt_queue_.front()->to_string().c_str());
+    write_raw_packet_(pkt_queue_.front()->raw_packet());
     packet_sent_millis_ = millis();
 
     // Remove packet from queue
     pkt_queue_.pop();
-  }
-}
-
-/* Queues a packet to be sent by the bridge.  If the queue is full, the packet will not be
-enqueued.*/
-void MITPBridge::send_packet(const Packet &packet_to_send) {
-  if (pkt_queue_.size() <= MAX_QUEUE_SIZE) {
-    pkt_queue_.push(packet_to_send);
-  } else {
-    ESP_LOGW(BRIDGE_TAG, "Packet queue full!  %x packet not sent.", packet_to_send.get_packet_type());
   }
 }
 
@@ -130,8 +118,16 @@ optional<RawPacket> MITPBridge::receive_raw_packet_(const SourceBridge source_br
   return RawPacket(packet_bytes, PACKET_HEADER_SIZE + payload_size + 1, source_bridge, controller_association);
 }
 
-template<class P> void MITPBridge::process_raw_packet_(RawPacket &pkt, bool expect_response) const {
-  P packet = P(std::move(pkt));
+template<class PType> void MITPBridge::process_raw_packet_(RawPacket &pkt, bool expect_response) const {
+  static_assert(std::is_base_of_v<Packet, PType>, "PType must derive from Packet");
+
+  PType packet = PType(std::move(pkt));
+
+  if (packet_awaiting_response_) {
+    // If this is a response, match up the sequence
+    packet.set_sequence(packet_awaiting_response_->get_sequence());
+  }
+
   packet.set_response_expected(expect_response);
   pkt_processor_.process_packet(packet);
 }
