@@ -165,6 +165,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 // Time Source
 #ifdef USE_TIME
   time::RealTimeClock *time_source_ = nullptr;
+  bool time_sync_ = false;
 #endif
 
   // Listener-sensors
