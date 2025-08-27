@@ -337,18 +337,17 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
     return;
   }
 
+  auto response = ThermostatStateDownloadResponsePacket();
+
 #ifdef USE_TIME
-  if (!this->time_sync_) {
-    // we can't send our own response if we can't generate a
-    // timestamp, so let the heatpump respond instead
-    route_packet_(packet);
-    return;
+  if (this->time_sync_) {
+    response.set_timestamp(this->time_source_->now().timestamp);
+  } else {
+    ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
+    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
   }
 #endif
 
-  auto response = ThermostatStateDownloadResponsePacket();
-
-  response.set_timestamp(this->time_source_->now().timestamp);
   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
   response.set_heat_setpoint(this->mhk_state_.heat_setpoint_);
   response.set_cool_setpoint(this->mhk_state_.cool_setpoint_);
