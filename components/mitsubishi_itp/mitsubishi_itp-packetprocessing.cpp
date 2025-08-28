@@ -339,21 +339,18 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 
   auto response = ThermostatStateDownloadResponsePacket();
 
+#ifdef USE_TIME
+  if (this->time_sync_) {
+    response.set_timestamp(this->time_source_->now().timestamp);
+  } else {
+    ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
+    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
+  }
+#endif
+
   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
   response.set_heat_setpoint(this->mhk_state_.heat_setpoint_);
   response.set_cool_setpoint(this->mhk_state_.cool_setpoint_);
-
-#ifdef USE_TIME
-  if (this->time_source_ != nullptr) {
-    response.set_timestamp(this->time_source_->now().timestamp);
-  } else {
-    ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
-  }
-#else
-  ESP_LOGW(TAG, "No time source specified. Cannot provide accurate time!");
-  response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
-#endif
 
   ts_bridge_->send_packet(response);
 }
