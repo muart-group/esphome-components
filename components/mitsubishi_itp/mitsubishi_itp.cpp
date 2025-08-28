@@ -30,6 +30,9 @@ void MitsubishiUART::setup() {
   preferences_ = global_preferences->make_preference<MITPPreferences>(get_object_id_hash() ^
                                                                       fnv1_hash(App.get_compilation_time()));
   restore_preferences_();
+#ifdef USE_TIME
+  this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
+#endif
 }
 
 void MitsubishiUART::restore_preferences_() {
