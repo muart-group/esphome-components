@@ -2,6 +2,7 @@
 
 set -e
 
+git clone https://github.com/muart-group/itp-packet.git /workspaces/itp-packet
 git clone --depth 1 https://github.com/esphome/esphome.git /workspaces/esphome
 
 cd /workspaces/esphome
