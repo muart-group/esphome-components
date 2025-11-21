@@ -88,6 +88,9 @@
           "${workspaceFolder}/**",
           "/workspaces/itp-packet/**",
           "/workspaces/esphome/**"
+        ],
+        "python.analysis.extraPaths": [
+          "/workspaces/esphome"
         ]
       }
     }
