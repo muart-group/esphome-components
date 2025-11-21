@@ -12,7 +12,7 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART>, publi
   using Parented<MitsubishiUART>::Parented;
   void publish() override {
     // Only publish if force, or a change has occurred and we have a real value
-    if (mitp_select_value_.has_value() && mitp_select_value_.value() != state) {
+    if (mitp_select_value_.has_value() && mitp_select_value_.value() != current_option()) {
       publish_state(mitp_select_value_.value());
     }
   }
