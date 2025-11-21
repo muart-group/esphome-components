@@ -34,7 +34,7 @@ void TemperatureSourceSelect::setup(bool thermostat_is_present) {
 }
 
 void TemperatureSourceSelect::register_temperature_source(const std::string &temperature_source_name) {
-  temp_select_options_.push_back(temperature_source_name);
+  temp_select_options_.push_back(temperature_source_name.c_str());
 }
 
 void TemperatureSourceSelect::control(const std::string &value) {

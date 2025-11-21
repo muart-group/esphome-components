@@ -35,7 +35,7 @@ class TemperatureSourceSelect : public MITPSelect {
 
  private:
   ESPPreferenceObject preferences_;
-  std::vector<std::string> temp_select_options_ = {
+  esphome::FixedVector<const char*> temp_select_options_ = {
       TEMPERATURE_SOURCE_INTERNAL};  // Used to map strings to indexes for preference storage
 };
 
