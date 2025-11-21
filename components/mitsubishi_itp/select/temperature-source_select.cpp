@@ -13,12 +13,7 @@ void TemperatureSourceSelect::publish() {
   }
 }
 
-void TemperatureSourceSelect::setup(bool thermostat_is_present) {
-  if (thermostat_is_present) {
-    temp_select_options_.push_back(TEMPERATURE_SOURCE_THERMOSTAT);
-  }
-
-  traits.set_options(temp_select_options_);
+void TemperatureSourceSelect::setup() {
 
   // Using App.get_compilation_time() means these will get reset each time the firmware is updated, but this
   // is an easy way to prevent wierd conflicts if e.g. select options change.
@@ -31,10 +26,6 @@ void TemperatureSourceSelect::setup(bool thermostat_is_present) {
   } else {
     control(TEMPERATURE_SOURCE_INTERNAL);  // Set to internal if no preferences loaded.
   }
-}
-
-void TemperatureSourceSelect::register_temperature_source(const std::string &temperature_source_name) {
-  temp_select_options_.push_back(temperature_source_name.c_str());
 }
 
 void TemperatureSourceSelect::control(const std::string &value) {

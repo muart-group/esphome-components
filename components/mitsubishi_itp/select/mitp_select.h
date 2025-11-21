@@ -25,10 +25,7 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART>, publi
 class TemperatureSourceSelect : public MITPSelect {
  public:
   void publish() override;
-  void setup(bool thermostat_is_present) override;
-
-  // Adds an option to temperature_source_select_
-  void register_temperature_source(const std::string &temperature_source_name);
+  void setup() override;
 
  protected:
   void control(const std::string &value) override;
