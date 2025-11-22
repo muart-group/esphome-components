@@ -131,7 +131,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
     ct.add_feature_flags(climate::CLIMATE_SUPPORTS_ACTION);
     ct.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
-    ct.add_feature_flags(climate::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE);
     ct.set_visual_min_temperature(MITP_MIN_TEMP);
     ct.set_visual_max_temperature(MITP_MAX_TEMP);
     ct.set_visual_temperature_step(MITP_TEMPERATURE_STEP);
