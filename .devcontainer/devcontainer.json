@@ -1,6 +1,6 @@
 {
   "name": "ESPHome Dev",
-  "image": "ghcr.io/esphome/esphome-lint:dev",
+  "image": "ghcr.io/esphome/esphome-lint",
   "postCreateCommand": [
     "scripts/devcontainer-postcreate"
   ],
@@ -31,8 +31,7 @@
         "ms-python.python",
         "ms-python.pylint",
         "ms-python.flake8",
-        "ms-python.black-formatter",
-        "visualstudioexptteam.vscodeintellicode",
+        "charliermarsh.ruff",
         // yaml
         "redhat.vscode-yaml",
         // cpp
@@ -87,7 +86,11 @@
         "C_Cpp.clang_format_path": "/usr/bin/clang-format-13",
         "C_Cpp.default.includePath": [
           "${workspaceFolder}/**",
+          "/workspaces/itp-packet/**",
           "/workspaces/esphome/**"
+        ],
+        "python.analysis.extraPaths": [
+          "/workspaces/esphome"
         ]
       }
     }

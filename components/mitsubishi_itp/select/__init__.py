@@ -1,15 +1,16 @@
 import esphome.codegen as cg
-from esphome.components import select, sensor
 import esphome.config_validation as cv
+from esphome.components import select, sensor
 from esphome.const import (
     CONF_ID,
+    CONF_TIMEOUT,
     ENTITY_CATEGORY_CONFIG,
     ENTITY_CATEGORY_NONE,
-    CONF_TIMEOUT,
 )
-from esphome.core import coroutine
+from esphome.core import CORE, coroutine
 
 from ...mitsubishi_itp import CONF_MITSUBISHI_ITP_ID, MitsubishiUART, mitsubishi_itp_ns
+from ..climate import CONF_UART_THERMOSTAT
 
 CONF_TEMPERATURE_SOURCE = (
     "temperature_source"  # This is to create a Select object for selecting a source
@@ -112,14 +113,25 @@ async def to_code(config):
             cg.add(getattr(mitp_component, "register_listener")(select_component))
 
             if select_designator == CONF_TEMPERATURE_SOURCE:
+                # Check to see if the associated climate has a thermostat defined
+                if "climate" in CORE.config:
+                    for climate_entry in CORE.config["climate"]:
+                        if (isinstance(climate_entry, dict) and
+                        CONF_ID in climate_entry and
+                        climate_entry.get(CONF_ID) == config[CONF_MITSUBISHI_ITP_ID]
+                        and CONF_UART_THERMOSTAT in climate_entry):
+                            # If so, add Thermostat as a temperature source option
+                            select_options.append(mitsubishi_itp_ns.TEMPERATURE_SOURCE_THERMOSTAT)
+
                 # Add additional configured temperature sensors to the select menu
                 for ts_id in select_conf[CONF_SOURCES]:
                     ts = await cg.get_variable(ts_id)
-                    cg.add(
-                        getattr(select_component, "register_temperature_source")(
-                            ts.get_name().str()
-                        )
-                    )
+                    select_options.append(ts.get_name().c_str())
+                    # cg.add(
+                    #     getattr(select_component, "register_temperature_source")(
+                    #         ts.get_name().str()
+                    #     )
+                    # )
                     cg.add(
                         getattr(ts, "add_on_state_callback")(
                             # TODO: Is there anyway to do this without a raw expression?

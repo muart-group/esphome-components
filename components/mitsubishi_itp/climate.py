@@ -1,6 +1,6 @@
 import esphome.codegen as cg
-from esphome.components import climate, time, uart
 import esphome.config_validation as cv
+from esphome.components import climate, time, uart
 from esphome.const import (
     CONF_CUSTOM_FAN_MODES,
     CONF_ID,
@@ -39,7 +39,7 @@ CONFIG_SCHEMA = (
             cv.GenerateID(CONF_ID): cv.declare_id(MitsubishiUART),
             cv.Required(CONF_UART_HEATPUMP): cv.use_id(uart.UARTComponent),
             cv.Optional(CONF_UART_THERMOSTAT): cv.use_id(uart.UARTComponent),
-            cv.Optional(CONF_TIME_ID): cv.use_id(time.RealTimeClock),
+            cv.OnlyWith(CONF_TIME_ID, "time"): cv.use_id(time.RealTimeClock),
             cv.Optional(
                 CONF_SUPPORTED_MODES, default=DEFAULT_CLIMATE_MODES
             ): cv.ensure_list(climate.validate_climate_mode),
@@ -105,7 +105,7 @@ async def to_code(config):
         cg.add(getattr(mitp_component, "set_time_source")(rtc_component))
     elif CONF_UART_THERMOSTAT in config and config.get(CONF_ENHANCED_MHK_SUPPORT):
         raise cv.RequiredFieldInvalid(
-            f"{CONF_TIME_ID} is required if {CONF_ENHANCED_MHK_SUPPORT} is set."
+            f"A 'time' component is required if {CONF_ENHANCED_MHK_SUPPORT} is set."
         )
 
     # Traits

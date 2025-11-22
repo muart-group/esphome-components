@@ -11,7 +11,7 @@ class MITPListener : public itp_packet::PacketProcessor {
  public:
   virtual void publish() = 0;  // Publish only if the underlying state has changed
 
-  virtual void setup(bool thermostat_is_present){};  // Called during hub-component setup();
+  virtual void setup(){};  // Called during hub-component setup();
   virtual void using_internal_temperature(const bool using_internal){};
 };
 
