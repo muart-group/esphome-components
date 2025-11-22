@@ -64,7 +64,7 @@ class MITPUtils {
             esphome::climate::CLIMATE_FAN_MEDIUM,
             esphome::climate::CLIMATE_FAN_HIGH,
         });
-        ct.add_supported_custom_fan_mode("Very High");
+        ct.set_supported_custom_fan_modes(std::vector<const char *>{itp_packet::FAN_MODE_VERYHIGH});
         break;
       default:
         // no-op, don't set a fan mode.

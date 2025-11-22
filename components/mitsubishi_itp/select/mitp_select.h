@@ -12,7 +12,7 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART>, publi
   using Parented<MitsubishiUART>::Parented;
   void publish() override {
     // Only publish if force, or a change has occurred and we have a real value
-    if (mitp_select_value_.has_value() && mitp_select_value_.value() != state) {
+    if (mitp_select_value_.has_value() && mitp_select_value_.value() != current_option()) {
       publish_state(mitp_select_value_.value());
     }
   }
@@ -25,17 +25,14 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART>, publi
 class TemperatureSourceSelect : public MITPSelect {
  public:
   void publish() override;
-  void setup(bool thermostat_is_present) override;
-
-  // Adds an option to temperature_source_select_
-  void register_temperature_source(const std::string &temperature_source_name);
+  void setup() override;
 
  protected:
   void control(const std::string &value) override;
 
  private:
   ESPPreferenceObject preferences_;
-  std::vector<std::string> temp_select_options_ = {
+  esphome::FixedVector<const char*> temp_select_options_ = {
       TEMPERATURE_SOURCE_INTERNAL};  // Used to map strings to indexes for preference storage
 };
 

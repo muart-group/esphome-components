@@ -9,8 +9,8 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   // Apply fan settings
   // Prioritize a custom fan mode if it's set.
-  if (call.get_custom_fan_mode().has_value()) {
-    if (call.get_custom_fan_mode().value() == FAN_MODE_VERYHIGH) {
+  if (call.get_custom_fan_mode()) {
+    if (call.get_custom_fan_mode() == FAN_MODE_VERYHIGH) {
       set_custom_fan_mode_(FAN_MODE_VERYHIGH);
       set_request_packet.set_fan(SettingsSetRequestPacket::FAN_4);
     }
@@ -96,7 +96,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
         this->mhk_state_.heat_setpoint_ = target_temperature;
         break;
       case climate::CLIMATE_MODE_HEAT_COOL:
-        if (this->get_traits().get_supports_two_point_target_temperature()) {
+        if (this->get_traits().has_feature_flags(climate::ClimateFeature::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE)) {
           this->mhk_state_.cool_setpoint_ = target_temperature_low;
           this->mhk_state_.heat_setpoint_ = target_temperature_high;
         } else {

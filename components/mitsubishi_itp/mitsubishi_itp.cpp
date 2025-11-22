@@ -23,7 +23,7 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
 void MitsubishiUART::setup() {
   for (auto *listener : listeners_) {
-    listener->setup(bool(ts_uart_));
+    listener->setup();
   }
   // Using App.get_compilation_time() means these will get reset each time the firmware is updated, but this
   // is an easy way to prevent wierd conflicts if e.g. select options change.

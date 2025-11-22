@@ -25,8 +25,8 @@ const uint8_t MITP_MIN_TEMP = 16;  // Degrees C
 const uint8_t MITP_MAX_TEMP = 31;  // Degrees C
 const float MITP_TEMPERATURE_STEP = 0.5;
 
-const std::string TEMPERATURE_SOURCE_INTERNAL = "Internal";
-const std::string TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
+inline const char* TEMPERATURE_SOURCE_INTERNAL = "Internal";
+inline const char* TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
 const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
 
@@ -129,9 +129,9 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   climate::ClimateTraits climate_traits_ = []() -> climate::ClimateTraits {
     climate::ClimateTraits ct = climate::ClimateTraits();
 
-    ct.set_supports_action(true);
-    ct.set_supports_current_temperature(true);
-    ct.set_supports_two_point_target_temperature(false);
+    ct.add_feature_flags(climate::CLIMATE_SUPPORTS_ACTION);
+    ct.add_feature_flags(climate::CLIMATE_SUPPORTS_CURRENT_TEMPERATURE);
+    ct.add_feature_flags(climate::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE);
     ct.set_visual_min_temperature(MITP_MIN_TEMP);
     ct.set_visual_max_temperature(MITP_MAX_TEMP);
     ct.set_visual_temperature_step(MITP_TEMPERATURE_STEP);

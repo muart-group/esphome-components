@@ -1,6 +1,6 @@
 import esphome.codegen as cg
-from esphome.components import climate, time, uart
 import esphome.config_validation as cv
+from esphome.components import climate, time, uart
 from esphome.const import (
     CONF_CUSTOM_FAN_MODES,
     CONF_ID,
