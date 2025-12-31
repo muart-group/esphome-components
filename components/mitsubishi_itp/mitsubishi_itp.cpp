@@ -69,25 +69,27 @@ void MitsubishiUART::loop() {
   if (!temperature_source_timeout_ && selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
     // if it's been too long since we got a report for our current selected source
     if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timout_ms_) {
-      // Alert user and set heatpump to internal
-      ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
-               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timout_ms_);
-      // Let listeners know we've changed to the Internal temperature source (but do not change
-      // selected_temperature_source)
-      alert_listeners_internal_temp_(true);
-      temperature_source_timeout_ = true;
-      // Send a packet to the heat pump to tell it to switch to internal temperature sensing
-      hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
-    } else if (temperature_source_echo_ms_ > 0 &&
-               millis() - temperature_source_echo_last_timestamp_ > temperature_source_echo_ms_) {
-      // If we haven't timed out, and an echo is set, check and send the last temperature for the selected source
-      if (!isnan(temperature_reports_[selected_temperature_source_].temperature)) {
-        ESP_LOGD(TAG, "Echoing last received temperature");
-        hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
-            temperature_reports_[selected_temperature_source_].temperature));
-        temperature_source_echo_last_timestamp_ = millis();
-        // Update source timestamp to prevent component-side timeout while echoing valid data
-        temperature_reports_[selected_temperature_source_].timestamp = millis();
+
+      // If an echo was configured, send that before we timeout entirely.
+      if (temperature_source_echo_ms_ > 0 &&
+                millis() - temperature_source_echo_last_timestamp_ > temperature_source_echo_ms_) {
+        // If the echos haven't timed out, and an echo is set, check and send the last temperature for the selected source
+        if (!isnan(temperature_reports_[selected_temperature_source_].temperature)) {
+          ESP_LOGD(TAG, "Echoing last received temperature");
+          hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
+              temperature_reports_[selected_temperature_source_].temperature));
+          temperature_source_echo_last_timestamp_ = millis();
+        }
+      } else {
+        // Alert user and set heatpump to internal
+        ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
+                selected_temperature_source_.c_str(), (unsigned long) temperature_source_timout_ms_);
+        // Let listeners know we've changed to the Internal temperature source (but do not change
+        // selected_temperature_source)
+        alert_listeners_internal_temp_(true);
+        temperature_source_timeout_ = true;
+        // Send a packet to the heat pump to tell it to switch to internal temperature sensing
+        hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
       }
     }
   }
