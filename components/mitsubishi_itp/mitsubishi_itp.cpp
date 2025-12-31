@@ -86,6 +86,8 @@ void MitsubishiUART::loop() {
         hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
             temperature_reports_[selected_temperature_source_].temperature));
         temperature_source_echo_last_timestamp_ = millis();
+        // Update source timestamp to prevent component-side timeout while echoing valid data
+        temperature_reports_[selected_temperature_source_].timestamp = millis();
       }
     }
   }
@@ -193,7 +195,7 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
     if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timout_ms_ &&
-        !isnan(temperature_reports_[selected_temperature_source_].timestamp)) {
+        !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
           temperature_reports_[selected_temperature_source_].temperature));
       alert_listeners_internal_temp_(false);
