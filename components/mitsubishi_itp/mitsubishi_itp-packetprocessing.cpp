@@ -160,9 +160,23 @@ void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) 
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
   route_packet_(packet);
   alert_listeners_packet_(packet);
-  // This will be the same as the remote temperature if we're using a remote sensor, otherwise the internal temp
+
   const float old_current_temperature = current_temperature;
-  current_temperature = packet.get_current_temp();
+
+  // If we're using a remote temperature source and have valid cached data, prefer our cached value.
+  // This prevents brief temperature flickers when the heat pump reports its internal sensor during
+  // the timing gap between echo and the next query. The heat pump may briefly show its internal
+  // temp before processing the echoed remote temperature.
+  if (selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL &&
+      !temperature_source_timeout_ &&
+      !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
+    current_temperature = temperature_reports_[selected_temperature_source_].temperature;
+    ESP_LOGV(TAG, "Using cached remote temperature %.1f (heat pump reported %.1f)",
+           current_temperature, packet.get_current_temp());
+  } else {
+    // Use what the heat pump reports (internal temp mode or during timeout)
+    current_temperature = packet.get_current_temp();
+  }
 
   publish_on_update_ |= (old_current_temperature != current_temperature);
 }
