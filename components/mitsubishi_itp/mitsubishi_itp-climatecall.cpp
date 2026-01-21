@@ -9,7 +9,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   // Apply fan settings
   // Prioritize a custom fan mode if it's set.
-  if (call.get_custom_fan_mode()) {
+  if (call.has_custom_fan_mode()) {
     if (call.get_custom_fan_mode() == FAN_MODE_VERYHIGH) {
       set_custom_fan_mode_(FAN_MODE_VERYHIGH);
       set_request_packet.set_fan(SettingsSetRequestPacket::FAN_4);
