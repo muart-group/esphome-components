@@ -22,6 +22,7 @@ CONF_UART_THERMOSTAT = "uart_thermostat"
 CONF_ENHANCED_MHK_SUPPORT = (
     "enhanced_mhk"  # EXPERIMENTAL. Will be set to default eventually.
 )
+CONF_MHK_F_CORRECTION = "mhk_fahrenheit_correction"
 CONF_RECALL_SETPOINT = "recall_setpoint"
 
 DEFAULT_POLLING_INTERVAL = "5s"
@@ -50,6 +51,7 @@ CONFIG_SCHEMA = (
                 validate_custom_fan_modes
             ),
             cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
+            cv.Optional(CONF_MHK_F_CORRECTION, default=False): cv.boolean,
             cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
         }
     )
@@ -125,6 +127,8 @@ async def to_code(config):
         cg.add(
             getattr(mitp_component, "set_enhanced_mhk_support")(enhanced_mhk_protocol)
         )
+    if mhk_f_correction := config.get(CONF_MHK_F_CORRECTION):
+        cg.add(getattr(mitp_component, "set_mhk_f_correction")(mhk_f_correction))
     if rs_conf := config.get(CONF_RECALL_SETPOINT):
         cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
 

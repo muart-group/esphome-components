@@ -69,7 +69,21 @@ void MitsubishiUART::process_packet(const GetRequestPacket &packet) {
 
 void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-  route_packet_(packet);
+
+  if (mhk_f_correction_) {
+    float packet_temp = packet.get_target_temp();
+    // This packet is issued by the heatpump, so it contains an actual temperature outbound to the thermostat.
+    float mhk_temp = mhk_temp_from_actual(packet_temp);
+    if (packet_temp == mhk_temp) {
+      ESP_LOGV(TAG, "Fahrenheit correction: outbound target temp %.1fC unchanged", packet_temp);
+      route_packet_(packet);
+    } else {
+      ESP_LOGV(TAG, "Fahrenheit correction: outbound target temp %.1fC -> %.1fC", packet_temp, mhk_temp);
+      route_packet_(SettingsGetResponsePacket(packet).set_target_temperature(mhk_temp));
+    }
+  } else {
+    route_packet_(packet);
+  }
   alert_listeners_packet_(packet);
 
   // Mode
@@ -158,7 +172,22 @@ void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
 
 void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-  route_packet_(packet);
+
+  if (mhk_f_correction_) {
+    float packet_temp = packet.get_current_temp();
+    // This packet is a response from the heatpump that will be forwarded to the thermostat.
+    float mhk_temp = mhk_temp_from_actual(packet_temp);
+    if (packet_temp == mhk_temp) {
+      ESP_LOGV(TAG, "Fahrenheit correction: current temp %.1fC unchanged", packet_temp);
+      route_packet_(packet);
+    } else {
+      ESP_LOGV(TAG, "Fahrenheit correction: current temp %.1fC -> %.1fC", packet_temp, mhk_temp);
+      route_packet_(CurrentTempGetResponsePacket(packet).set_current_temperature(mhk_temp));
+    }
+  } else {
+    route_packet_(packet);
+  }
+
   alert_listeners_packet_(packet);
   // This will be the same as the remote temperature if we're using a remote sensor, otherwise the internal temp
   const float old_current_temperature = current_temperature;
@@ -246,10 +275,22 @@ void MitsubishiUART::process_packet(const Functions2GetResponsePacket &packet) {
 }
 
 void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
-  ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-
-  // forward this packet as-is; we're just intercepting to log.
-  route_packet_(packet);
+  if (mhk_f_correction_) {
+    float packet_temp = packet.get_target_temp();
+    // This packet is inbound from the thermostat when its settings change.
+    float actual_temp = mhk_temp_to_actual(packet_temp);
+    if (packet_temp == actual_temp) {
+      ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC unchanged", packet_temp);
+      route_packet_(packet);
+    } else {
+      ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC -> %.1fC", packet_temp, actual_temp);
+      route_packet_(SettingsSetRequestPacket(packet).set_target_temperature(actual_temp));
+    }
+  } else {
+    ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
+    // forward this packet as-is; we're just intercepting to log.
+    route_packet_(packet);
+  }
   alert_listeners_packet_(packet);
 }
 
