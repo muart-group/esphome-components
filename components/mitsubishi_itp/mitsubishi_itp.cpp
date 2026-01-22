@@ -193,7 +193,7 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
     if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timout_ms_ &&
-        !isnan(temperature_reports_[selected_temperature_source_].timestamp)) {
+        !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
           temperature_reports_[selected_temperature_source_].temperature));
       alert_listeners_internal_temp_(false);
