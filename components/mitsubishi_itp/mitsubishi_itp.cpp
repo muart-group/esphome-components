@@ -25,10 +25,12 @@ void MitsubishiUART::setup() {
   for (auto *listener : listeners_) {
     listener->setup();
   }
-  // Using App.get_compilation_time() means these will get reset each time the firmware is updated, but this
+  // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
   // is an easy way to prevent wierd conflicts if e.g. select options change.
+  char build_time_buffer[26];
+  App.get_build_time_string(build_time_buffer);
   preferences_ = global_preferences->make_preference<MITPPreferences>(get_object_id_hash() ^
-                                                                      fnv1_hash(App.get_compilation_time()));
+                                                                      fnv1_hash(build_time_buffer));
   restore_preferences_();
 #ifdef USE_TIME
   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
@@ -193,7 +195,7 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
     if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timout_ms_ &&
-        !isnan(temperature_reports_[selected_temperature_source_].timestamp)) {
+        !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
           temperature_reports_[selected_temperature_source_].temperature));
       alert_listeners_internal_temp_(false);
