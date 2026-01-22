@@ -282,16 +282,21 @@ void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
     if (packet_temp == actual_temp) {
       ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC unchanged", packet_temp);
       route_packet_(packet);
+      alert_listeners_packet_(packet);
     } else {
       ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC -> %.1fC", packet_temp, actual_temp);
-      route_packet_(SettingsSetRequestPacket(packet).set_target_temperature(actual_temp));
+      // In this case, we want to modify the packet for everyone, including listeners -- only the MHK thinks that the
+      // temperature it sent is accurate.
+      auto corrected_packet = SettingsSetRequestPacket(packet).set_target_temperature(actual_temp);
+      route_packet_(corrected_packet);
+      alert_listeners_packet_(corrected_packet);
     }
   } else {
     ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
     // forward this packet as-is; we're just intercepting to log.
     route_packet_(packet);
+    alert_listeners_packet_(packet);
   }
-  alert_listeners_packet_(packet);
 }
 
 void MitsubishiUART::process_packet(const RemoteTemperatureSetRequestPacket &packet) {
