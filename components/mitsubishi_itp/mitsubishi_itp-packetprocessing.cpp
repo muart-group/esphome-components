@@ -22,12 +22,12 @@ float MitsubishiUART::get_corrected_temp_for_packet_(const Packet &packet, const
   }
   if (packet.get_source_bridge() == SourceBridge::THERMOSTAT) {
     const float corrected_temp = mhk_temp_to_actual(temp);
-    ESP_LOGV(TAG, "Fahrenheit correction: %.1fC -> %.1fC MHK to actual for %.0fF", temp, corrected_temp,
+    ESP_LOGV(TAG, "Fahrenheit correction: %.1fC MHK to %.1fC actual for %.0fF", temp, corrected_temp,
              round(corrected_temp * 9.0f / 5.0f + 32.0f));
     return corrected_temp;
   }
   const float corrected_temp = mhk_temp_from_actual(temp);
-  ESP_LOGV(TAG, "Fahrenheit correction: %.1fC -> %.1fC actual to MHK for %.0fF", temp, corrected_temp,
+  ESP_LOGV(TAG, "Fahrenheit correction: %.1fC actual to %.1fC MHK for %.0fF", temp, corrected_temp,
            round(temp * 9.0f / 5.0f + 32.0f));
   return corrected_temp;
 }
