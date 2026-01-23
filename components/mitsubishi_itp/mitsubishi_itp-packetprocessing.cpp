@@ -15,6 +15,23 @@ void MitsubishiUART::route_packet_(const Packet &packet) {
   }
 }
 
+float MitsubishiUART::get_corrected_temp_for_packet_(const Packet &packet, const float temp) {
+  if (!mhk_f_correction_ || packet.get_controller_association() != ControllerAssociation::THERMOSTAT ||
+      packet.get_source_bridge() == SourceBridge::NONE) {
+    return temp;
+  }
+  if (packet.get_source_bridge() == SourceBridge::THERMOSTAT) {
+    const float corrected_temp = mhk_temp_to_actual(temp);
+    ESP_LOGV(TAG, "Fahrenheit correction: %.1fC -> %.1fC MHK to actual for %.0fF", temp, corrected_temp,
+             round(corrected_temp * 9.0f / 5.0f + 32.0f));
+    return corrected_temp;
+  }
+  const float corrected_temp = mhk_temp_from_actual(temp);
+  ESP_LOGV(TAG, "Fahrenheit correction: %.1fC -> %.1fC actual to MHK for %.0fF", temp, corrected_temp,
+           round(temp * 9.0f / 5.0f + 32.0f));
+  return corrected_temp;
+}
+
 // Packet Handlers
 void MitsubishiUART::process_packet(const Packet &packet) {
   ESP_LOGI(TAG, "Generic unhandled packet type %x received.", packet.get_packet_type());
@@ -70,20 +87,14 @@ void MitsubishiUART::process_packet(const GetRequestPacket &packet) {
 void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
-  if (mhk_f_correction_) {
-    float packet_temp = packet.get_target_temp();
-    // This packet is issued by the heatpump, so it contains an actual temperature outbound to the thermostat.
-    float mhk_temp = mhk_temp_from_actual(packet_temp);
-    if (packet_temp == mhk_temp) {
-      ESP_LOGV(TAG, "Fahrenheit correction: outbound target temp %.1fC unchanged", packet_temp);
-      route_packet_(packet);
-    } else {
-      ESP_LOGV(TAG, "Fahrenheit correction: outbound target temp %.1fC -> %.1fC", packet_temp, mhk_temp);
-      route_packet_(SettingsGetResponsePacket(packet).set_target_temperature(mhk_temp));
-    }
-  } else {
+  float packet_temp = packet.get_target_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
+  if (packet_temp == corrected_temp) {
     route_packet_(packet);
+  } else {
+    route_packet_(SettingsGetResponsePacket(packet).set_target_temperature(corrected_temp));
   }
+
   alert_listeners_packet_(packet);
 
   // Mode
@@ -173,19 +184,12 @@ void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
 void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
-  if (mhk_f_correction_) {
-    float packet_temp = packet.get_current_temp();
-    // This packet is a response from the heatpump that will be forwarded to the thermostat.
-    float mhk_temp = mhk_temp_from_actual(packet_temp);
-    if (packet_temp == mhk_temp) {
-      ESP_LOGV(TAG, "Fahrenheit correction: current temp %.1fC unchanged", packet_temp);
-      route_packet_(packet);
-    } else {
-      ESP_LOGV(TAG, "Fahrenheit correction: current temp %.1fC -> %.1fC", packet_temp, mhk_temp);
-      route_packet_(CurrentTempGetResponsePacket(packet).set_current_temperature(mhk_temp));
-    }
-  } else {
+  float packet_temp = packet.get_current_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
+  if (packet_temp == corrected_temp) {
     route_packet_(packet);
+  } else {
+    route_packet_(CurrentTempGetResponsePacket(packet).set_current_temperature(corrected_temp));
   }
 
   alert_listeners_packet_(packet);
@@ -275,27 +279,18 @@ void MitsubishiUART::process_packet(const Functions2GetResponsePacket &packet) {
 }
 
 void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
-  if (mhk_f_correction_) {
-    float packet_temp = packet.get_target_temp();
-    // This packet is inbound from the thermostat when its settings change.
-    float actual_temp = mhk_temp_to_actual(packet_temp);
-    if (packet_temp == actual_temp) {
-      ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC unchanged", packet_temp);
-      route_packet_(packet);
-      alert_listeners_packet_(packet);
-    } else {
-      ESP_LOGV(TAG, "Fahrenheit correction: inbound target temp %.1fC -> %.1fC", packet_temp, actual_temp);
-      // In this case, we want to modify the packet for everyone, including listeners -- only the MHK thinks that the
-      // temperature it sent is accurate.
-      auto corrected_packet = SettingsSetRequestPacket(packet).set_target_temperature(actual_temp);
-      route_packet_(corrected_packet);
-      alert_listeners_packet_(corrected_packet);
-    }
-  } else {
+  float packet_temp = packet.get_target_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
+
+  if (packet_temp == corrected_temp) {
     ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-    // forward this packet as-is; we're just intercepting to log.
     route_packet_(packet);
     alert_listeners_packet_(packet);
+  } else {
+    auto corrected_packet = SettingsSetRequestPacket(packet).set_target_temperature(corrected_temp);
+    ESP_LOGV(TAG, "Passing through temperature-corrected inbound %s", corrected_packet.to_string().c_str());
+    route_packet_(corrected_packet);
+    alert_listeners_packet_(corrected_packet);
   }
 }
 

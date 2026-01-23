@@ -100,6 +100,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
  protected:
   void route_packet_(const Packet &packet);
+  float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
 
   void process_packet(const Packet &packet) override;
   void process_packet(const ConnectRequestPacket &packet) override;
