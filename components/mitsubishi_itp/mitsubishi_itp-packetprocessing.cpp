@@ -344,10 +344,16 @@ void MitsubishiUART::process_packet(const ThermostatStateUploadPacket &packet) {
 
   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
 
-  if (packet.get_flags() & 0x08)
-    this->mhk_state_.heat_setpoint_ = packet.get_heat_setpoint();
-  if (packet.get_flags() & 0x10)
-    this->mhk_state_.cool_setpoint_ = packet.get_cool_setpoint();
+  // In Fahrenheit correction mode, we store the actual temp in mhk_state_ and only alter it just in time to
+  // send/receive over the wire
+  if (packet.get_flags() & 0x08) {
+    this->mhk_state_.heat_setpoint_ =
+        mhk_f_correction_ ? mhk_temp_to_actual(packet.get_heat_setpoint()) : packet.get_heat_setpoint();
+  }
+  if (packet.get_flags() & 0x10) {
+    this->mhk_state_.cool_setpoint_ =
+        mhk_f_correction_ ? mhk_temp_to_actual(packet.get_cool_setpoint()) : packet.get_cool_setpoint();
+  }
 
   ts_bridge_->send_packet(SetResponsePacket());
 }
@@ -390,8 +396,11 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 #endif
 
   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
-  response.set_heat_setpoint(this->mhk_state_.heat_setpoint_);
-  response.set_cool_setpoint(this->mhk_state_.cool_setpoint_);
+  // We store the actual temp in mhk_state_ and only alter it just in time to send/receive over the wire
+  response.set_heat_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.heat_setpoint_)
+                                               : this->mhk_state_.heat_setpoint_);
+  response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
+                                               : this->mhk_state_.cool_setpoint_);
 
   ts_bridge_->send_packet(response);
 }
