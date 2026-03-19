@@ -8,7 +8,8 @@ void TemperatureSourceSelect::publish() {
   if (mitp_select_value_.has_value() && mitp_select_value_.value() != current_option()) {
     publish_state(mitp_select_value_.value());
     if (active_index().has_value()) {
-      preferences_.save(&active_index().value());
+      size_t index = active_index().value();
+      preferences_.save(&index);
     }
   }
 }
