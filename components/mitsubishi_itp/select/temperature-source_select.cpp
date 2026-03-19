@@ -14,13 +14,11 @@ void TemperatureSourceSelect::publish() {
 }
 
 void TemperatureSourceSelect::setup() {
-
   // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
   // is an easy way to prevent wierd conflicts if e.g. select options change.
   char build_time_buffer[26];
   App.get_build_time_string(build_time_buffer);
-  this->preferences_ =
-      global_preferences->make_preference<size_t>(this->get_object_id_hash() ^ fnv1_hash(build_time_buffer));
+  this->preferences_ = this->make_entity_preference<float>();
 
   size_t saved_index;
   if (this->preferences_.load(&saved_index) && has_index(saved_index) && at(saved_index).has_value()) {
