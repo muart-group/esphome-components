@@ -29,7 +29,7 @@ void MitsubishiUART::setup() {
   // is an easy way to prevent wierd conflicts if e.g. select options change.
   char build_time_buffer[26];
   App.get_build_time_string(build_time_buffer);
-  preferences_ = this->make_entity_preference<float>();
+  preferences_ = this->make_entity_preference<MITPPreferences>();
   restore_preferences_();
 #ifdef USE_TIME
   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });

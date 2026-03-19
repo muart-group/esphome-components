@@ -18,7 +18,7 @@ void TemperatureSourceSelect::setup() {
   // is an easy way to prevent wierd conflicts if e.g. select options change.
   char build_time_buffer[26];
   App.get_build_time_string(build_time_buffer);
-  this->preferences_ = this->make_entity_preference<float>();
+  this->preferences_ = this->make_entity_preference<size_t>();
 
   size_t saved_index;
   if (this->preferences_.load(&saved_index) && has_index(saved_index) && at(saved_index).has_value()) {
