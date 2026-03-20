@@ -19,6 +19,10 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
   current_temperature = NAN;
 }
 
+// This value should be changed if the structure of the preferences object changes
+// to invalidate previously stored preferences.
+const uint MITP_PREFERENCE_VERSION = 1;
+
 // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
 void MitsubishiUART::setup() {
@@ -29,7 +33,7 @@ void MitsubishiUART::setup() {
   // is an easy way to prevent wierd conflicts if e.g. select options change.
   char build_time_buffer[26];
   App.get_build_time_string(build_time_buffer);
-  preferences_ = this->make_entity_preference<MITPPreferences>();
+  preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
   restore_preferences_();
 #ifdef USE_TIME
   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
