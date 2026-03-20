@@ -117,7 +117,7 @@ async def to_code(config):
     if CONF_SUPPORTED_FAN_MODES in config:
         cg.add(traits.set_supported_fan_modes(config[CONF_SUPPORTED_FAN_MODES]))
 
-    if CONF_CUSTOM_FAN_MODES in config:
+    if CONF_CUSTOM_FAN_MODES in config and len(config[CONF_CUSTOM_FAN_MODES]) > 0:
         cg.add(traits.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
 
     # Debug Settings
