@@ -19,10 +19,6 @@ void TemperatureSourceSelect::publish() {
 const uint TEMP_SOURCE_SELECT_PREFERENCE_VERSION = 1;
 
 void TemperatureSourceSelect::setup() {
-  // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
-  // is an easy way to prevent wierd conflicts if e.g. select options change.
-  char build_time_buffer[26];
-  App.get_build_time_string(build_time_buffer);
   this->preferences_ = this->make_entity_preference<size_t>(TEMP_SOURCE_SELECT_PREFERENCE_VERSION);
 
   size_t saved_index;

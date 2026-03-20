@@ -29,10 +29,6 @@ void MitsubishiUART::setup() {
   for (auto *listener : listeners_) {
     listener->setup();
   }
-  // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
-  // is an easy way to prevent wierd conflicts if e.g. select options change.
-  char build_time_buffer[26];
-  App.get_build_time_string(build_time_buffer);
   preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
   restore_preferences_();
 #ifdef USE_TIME
