@@ -46,6 +46,10 @@ void HeatpumpBridge::loop() {
     // We've been waiting too long for a response, give up
     // TODO: We could potentially retry here, but that seems unnecessary
     ESP_LOGW(BRIDGE_TAG, "Timeout waiting for response to %x packet.", packet_awaiting_response_->get_packet_type());
+    if (packet_awaiting_response_->get_packet_type() == static_cast<uint8_t>(itp_packet::PacketType::CONNECT_REQUEST)) {
+      ESP_LOGW(BRIDGE_TAG,
+               "Please check the connection to the heat pump as this often indicates a communication issue.");
+    }
     packet_awaiting_response_.reset();
   }
 }
