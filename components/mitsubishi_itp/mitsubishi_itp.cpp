@@ -69,10 +69,10 @@ void MitsubishiUART::loop() {
   // If we're not on timeout and not on Internal
   if (!temperature_source_timeout_ && selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
     // if it's been too long since we got a report for our current selected source
-    if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timout_ms_) {
+    if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timeout_ms_) {
       // Alert user and set heatpump to internal
       ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
-               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timout_ms_);
+               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timeout_ms_);
       // Let listeners know we've changed to the Internal temperature source (but do not change
       // selected_temperature_source)
       alert_listeners_internal_temp_(true);
@@ -193,7 +193,7 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
     hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
-    if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timout_ms_ &&
+    if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timeout_ms_ &&
         !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
           temperature_reports_[selected_temperature_source_].temperature));
