@@ -19,18 +19,17 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
   current_temperature = NAN;
 }
 
+// This value should be changed if the structure of the preferences object changes
+// to invalidate previously stored preferences.
+const uint MITP_PREFERENCE_VERSION = 1;
+
 // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
 void MitsubishiUART::setup() {
   for (auto *listener : listeners_) {
     listener->setup();
   }
-  // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
-  // is an easy way to prevent wierd conflicts if e.g. select options change.
-  char build_time_buffer[26];
-  App.get_build_time_string(build_time_buffer);
-  preferences_ = global_preferences->make_preference<MITPPreferences>(get_object_id_hash() ^
-                                                                      fnv1_hash(build_time_buffer));
+  preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
   restore_preferences_();
 #ifdef USE_TIME
   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
@@ -70,10 +69,10 @@ void MitsubishiUART::loop() {
   // If we're not on timeout and not on Internal
   if (!temperature_source_timeout_ && selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
     // if it's been too long since we got a report for our current selected source
-    if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timout_ms_) {
+    if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timeout_ms_) {
       // Alert user and set heatpump to internal
       ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
-               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timout_ms_);
+               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timeout_ms_);
       // Let listeners know we've changed to the Internal temperature source (but do not change
       // selected_temperature_source)
       alert_listeners_internal_temp_(true);
@@ -194,7 +193,7 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
     hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
-    if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timout_ms_ &&
+    if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timeout_ms_ &&
         !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
           temperature_reports_[selected_temperature_source_].temperature));

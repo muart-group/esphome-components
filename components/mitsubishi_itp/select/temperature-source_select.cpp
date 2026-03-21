@@ -8,19 +8,18 @@ void TemperatureSourceSelect::publish() {
   if (mitp_select_value_.has_value() && mitp_select_value_.value() != current_option()) {
     publish_state(mitp_select_value_.value());
     if (active_index().has_value()) {
-      preferences_.save(&active_index().value());
+      size_t index = active_index().value();
+      preferences_.save(&index);
     }
   }
 }
 
-void TemperatureSourceSelect::setup() {
+// This value should be changed if the structure of the preferences object changes
+// to invalidate previously stored preferences.
+const uint TEMP_SOURCE_SELECT_PREFERENCE_VERSION = 1;
 
-  // Using App.get_build_time_string() means these will get reset each time the firmware is updated, but this
-  // is an easy way to prevent wierd conflicts if e.g. select options change.
-  char build_time_buffer[26];
-  App.get_build_time_string(build_time_buffer);
-  this->preferences_ =
-      global_preferences->make_preference<size_t>(this->get_object_id_hash() ^ fnv1_hash(build_time_buffer));
+void TemperatureSourceSelect::setup() {
+  this->preferences_ = this->make_entity_preference<size_t>(TEMP_SOURCE_SELECT_PREFERENCE_VERSION);
 
   size_t saved_index;
   if (this->preferences_.load(&saved_index) && has_index(saved_index) && at(saved_index).has_value()) {
