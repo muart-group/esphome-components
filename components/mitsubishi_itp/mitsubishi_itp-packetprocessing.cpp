@@ -324,6 +324,11 @@ void MitsubishiUART::process_packet(const ThermostatAASetRequestPacket &packet) 
   ts_bridge_->send_packet(SetResponsePacket());
 }
 
+void MitsubishiUART::process_packet(const ZoneGetResponsePacket &packet) {
+  ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
+  alert_listeners_packet_(packet);
+}
+
 void MitsubishiUART::process_packet(const SetResponsePacket &packet) {
   ESP_LOGV(TAG, "Got Set Response packet, success = %s (code = %x)", packet.is_successful() ? "true" : "false",
            packet.get_result_code());

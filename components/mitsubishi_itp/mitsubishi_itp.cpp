@@ -164,6 +164,10 @@ void MitsubishiUART::update() {
   hp_bridge_.send_packet(GetRequestPacket::get_current_temp_instance());
   hp_bridge_.send_packet(GetRequestPacket::get_error_info_instance());
 
+  if (zones_enabled_) {
+    hp_bridge_.send_packet(GetRequestPacket::get_zone_instance());
+  }
+
   if (in_discovery_) {
     // After criteria met, exit discovery mode
     // Currently this is either 5 updates or a successful RunState response.
@@ -307,6 +311,12 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
     // If we've sent a remote temperature, we're not using the internal one
     alert_listeners_internal_temp_(false);
   }
+}
+
+bool MitsubishiUART::set_zone_active(uint8_t zone, bool active) {
+  ESP_LOGI(TAG, "Setting zone %d to %s", zone + 1, active ? "ON" : "OFF");
+  hp_bridge_.send_packet(ZoneSetRequestPacket().set_zone_active(zone, active));
+  return true;
 }
 
 void MitsubishiUART::reset_filter_status() {
