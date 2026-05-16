@@ -88,6 +88,9 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Turns on or off Kumo emulation mode
   void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
 
+  // Turns on or off MHK Fahrenheit conversion correction
+  void set_mhk_f_correction(const bool enabled) { mhk_f_correction_ = enabled; }
+
   // Enables the recall setpoint feature
   void set_recall_setpoint(const bool enabled) { recall_setpoint_ = enabled; }
 
@@ -97,6 +100,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
  protected:
   void route_packet_(const Packet &packet);
+  float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
 
   void process_packet(const Packet &packet) override;
   void process_packet(const ConnectRequestPacket &packet) override;
@@ -197,6 +201,9 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // used to track whether to support/handle the enhanced MHK protocol packets
   bool enhanced_mhk_support_ = false;
+
+  // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
+  bool mhk_f_correction_ = false;
 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;
