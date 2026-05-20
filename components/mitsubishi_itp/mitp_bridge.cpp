@@ -179,6 +179,9 @@ void MITPBridge::classify_and_process_raw_packet_(RawPacket &pkt) const {
         case GetCommand::FUNCTIONS_2:
           process_raw_packet_<Functions2GetResponsePacket>(pkt, false);
           break;
+        case GetCommand::ZONE_STATE:
+          process_raw_packet_<ZoneGetResponsePacket>(pkt, false);
+          break;
         case GetCommand::THERMOSTAT_STATE_DOWNLOAD:
           process_raw_packet_<ThermostatStateDownloadResponsePacket>(pkt, false);
           break;
@@ -202,6 +205,9 @@ void MITPBridge::classify_and_process_raw_packet_(RawPacket &pkt) const {
           break;
         case SetCommand::THERMOSTAT_STATE_UPLOAD:
           process_raw_packet_<ThermostatStateUploadPacket>(pkt, true);
+          break;
+        case SetCommand::ZONE_STATE:
+          process_raw_packet_<ZoneSetRequestPacket>(pkt, true);
           break;
         case SetCommand::THERMOSTAT_SET_AA:
           process_raw_packet_<ThermostatAASetRequestPacket>(pkt, true);

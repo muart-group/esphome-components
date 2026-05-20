@@ -85,6 +85,10 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Button triggers
   void reset_filter_status();
 
+  // Zone control
+  bool set_zone_active(uint8_t zone, bool active);
+  void set_zones_enabled(bool enabled) { zones_enabled_ = enabled; }
+
   // Turns on or off Kumo emulation mode
   void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
 
@@ -121,6 +125,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   void process_packet(const ThermostatHelloPacket &packet) override;
   void process_packet(const ThermostatStateUploadPacket &packet) override;
   void process_packet(const ThermostatAASetRequestPacket &packet) override;
+  void process_packet(const ZoneGetResponsePacket &packet) override;
   void process_packet(const SetResponsePacket &packet) override;
 
   void handle_thermostat_state_download_request(const GetRequestPacket &packet) override;
@@ -204,6 +209,9 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
   bool mhk_f_correction_ = false;
+  
+  // set to true when at least one zone switch is registered
+  bool zones_enabled_ = false;
 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;
