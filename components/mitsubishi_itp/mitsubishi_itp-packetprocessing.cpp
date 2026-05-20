@@ -329,6 +329,14 @@ void MitsubishiUART::process_packet(const ZoneGetResponsePacket &packet) {
   alert_listeners_packet_(packet);
 }
 
+void MitsubishiUART::process_packet(const ZoneSetRequestPacket &packet) {
+  ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
+
+  // forward this packet as-is; we're just intercepting to log.
+  route_packet_(packet);
+  alert_listeners_packet_(packet);
+}
+
 void MitsubishiUART::process_packet(const SetResponsePacket &packet) {
   ESP_LOGV(TAG, "Got Set Response packet, success = %s (code = %x)", packet.is_successful() ? "true" : "false",
            packet.get_result_code());
