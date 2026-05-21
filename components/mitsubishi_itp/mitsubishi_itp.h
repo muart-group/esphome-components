@@ -126,6 +126,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   void process_packet(const ThermostatStateUploadPacket &packet) override;
   void process_packet(const ThermostatAASetRequestPacket &packet) override;
   void process_packet(const ZoneGetResponsePacket &packet) override;
+  void process_packet(const ZoneSetRequestPacket &packet) override;
   void process_packet(const SetResponsePacket &packet) override;
 
   void handle_thermostat_state_download_request(const GetRequestPacket &packet) override;
@@ -209,7 +210,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
   bool mhk_f_correction_ = false;
-  
+
   // set to true when at least one zone switch is registered
   bool zones_enabled_ = false;
 
