@@ -11,7 +11,7 @@ namespace esphome {
 namespace mitsubishi_itp {
 
 static constexpr char BRIDGE_TAG[] = "mitp_bridge";
-static const uint32_t RESPONSE_TIMEOUT_MS = 3000;  // Maximum amount of time to wait for an expected response packet
+static const uint32_t RESPONSE_TIMEOUT_MS = 1000;  // Maximum amount of time to wait for an expected response packet
 /* Maximum number of packets allowed to be queued for sending.  In some circumstances the equipment response
 time can be very slow and packets would queue up faster than they were being received.  TODO: Not sure what size this
 should be, 4ish should be enough for almost all situations, so 8 seems plenty.*/
