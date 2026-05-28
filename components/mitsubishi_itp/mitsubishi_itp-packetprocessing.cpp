@@ -42,12 +42,19 @@ void MitsubishiUART::process_packet(const Packet &packet) {
 void MitsubishiUART::process_packet(const ConnectRequestPacket &packet) {
   // Nothing to be done for these except forward them along from thermostat to heat pump.
   // This method defined so that these packets are not "unhandled"
-  ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-  route_packet_(packet);
+
+  if (hp_connected_) {
+    ESP_LOGV(TAG, "Responding to inbound %s", packet.to_string().c_str());
+    ts_bridge_->send_packet(ConnectResponsePacket::instance());  // Immediately respond to thermostat (to keep it happy)
+  } else {
+    ESP_LOGV(TAG, "(Not yet connected) Passing through inbound %s", packet.to_string().c_str());
+    route_packet_(packet);
+  }
 }
 void MitsubishiUART::process_packet(const ConnectResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-  route_packet_(packet);
+  // route_packet_(packet); Don't send this to thermostat, we already did when we processed the Request
+
   // Not sure if there's any needed content in this response, so assume we're connected.
   hp_connected_ = true;
   ESP_LOGI(TAG, "Heatpump connected.");
