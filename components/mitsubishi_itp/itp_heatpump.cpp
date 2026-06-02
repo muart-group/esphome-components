@@ -15,17 +15,21 @@ void Heatpump::loop() {
   }
 
   if (current_request_ctx_) {
-    // If there's a request in-flight, try to read a response packet
-    if (optional<RawPacket> pkt = receive_raw_packet_()) {
-      ESP_LOGD("itp_heatpump", "Got packet!");
-      current_request_ctx_->response = pkt.value();
-      ESP_LOGD("itp_heatpump", "Set response");
+    // If there's a request in-flight, but it's been too long, timeout
+    if (millis() - packet_sent_millis_ > 1000) {
+      current_request_ctx_->response = Response{.err = "Timed out waiting for packet"};
       current_request_ctx_->handle.resume();
-      ESP_LOGD("itp_heatpump", "Did resume");
       current_request_ctx_ = nullptr;
-      ESP_LOGD("itp_heatpump", "Clearing");
     }
-    // If we don't get one, we'll keep waiting (TODO: until timeout is hit)
+
+    // Otherwise, try to read a response packet
+    else if (optional<RawPacket> pkt = receive_raw_packet_()) {
+      // If we get a packet, read it into the response and resume the awaiter
+      current_request_ctx_->response = Response{.raw_packet = pkt.value(), .err = ""};
+      current_request_ctx_->handle.resume();
+      current_request_ctx_ = nullptr;
+    }
+    // If we don't get one and haven't timed out, we'll keep waiting...
   } else if (!request_queue_.empty()) {
     ESP_LOGD("itp_heatpump", "Queue not empty");
     // Otherwise if there's a request in the queue, pop and send.
@@ -33,6 +37,7 @@ void Heatpump::loop() {
     request_queue_.pop();  // Pop empty pointer (we're holding it in current_request_ctx_ now)
 
     write_raw_packet_(current_request_ctx_->request.raw_packet());
+    packet_sent_millis_ = millis();
   }
 }
 
@@ -41,13 +46,17 @@ Task Heatpump::do_update_queries() {
   update_sent_millis_ = millis();
 
   std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
-  RawPacket response = co_await RequestAwaiter(std::move(req), request_queue_);
+  Response response = co_await RequestAwaiter(std::move(req), request_queue_);
 
-  // TODO: Make sure it's the right packet
-  ESP_LOGD("itp_heatpump", "Got response");
-  ESP_LOGD("itp_heatpump", "Got response type %i", response.get_packet_type());
-  StatusGetResponsePacket rp = StatusGetResponsePacket(std::move(response));
-  pkt_processor_.process_packet(rp);
+  if (response.raw_packet) {
+    // TODO: Make sure it's the right packet
+    ESP_LOGD("itp_heatpump", "Got response");
+    ESP_LOGD("itp_heatpump", "Got response type %i", response.raw_packet.value().get_packet_type());
+    StatusGetResponsePacket rp = StatusGetResponsePacket(std::move(response.raw_packet.value()));
+    pkt_processor_.process_packet(rp);
+  } else {
+    ESP_LOGW("itp_heatpump", "Error receiving packet: {}", response.err);
+  }
 }
 
 // Task Heatpump::do_connect() {

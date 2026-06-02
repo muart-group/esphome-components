@@ -4,6 +4,8 @@
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/helpers.h"
 #include <coroutine>
+#include <variant>
+#include <expected>
 #include "itp_packetprocessor.h"
 
 using namespace itp_packet;
@@ -52,9 +54,14 @@ struct Task {
   }
 };
 
+struct Response {
+  optional<RawPacket> raw_packet = nullopt;
+  char *err;
+};
+
 struct RequestContext {
   Packet request;
-  RawPacket response;
+  Response response;
   std::coroutine_handle<> handle;
 
   RequestContext(Packet request) : request(request) {}
@@ -76,7 +83,7 @@ struct RequestAwaiter {
 
   void await_suspend(std::coroutine_handle<> h) { ctx_ptr->handle = h; }
 
-  RawPacket await_resume() {
+  Response await_resume() {
     ESP_LOGD("itp_heatpump", "Resuming!");
     return std::move(ctx_ptr->response);  // Last use of ctx_ptr before Awaiter is destroyed.
   }
@@ -97,6 +104,7 @@ class Heatpump {
   std::queue<std::unique_ptr<RequestContext>> request_queue_;
   Task update_task_;
   uint32_t update_sent_millis_ = 0;
+  uint32_t packet_sent_millis_ = 0;
   Task do_update_queries();
   Task do_connect();
   std::unique_ptr<RequestContext> current_request_ctx_ = nullptr;
