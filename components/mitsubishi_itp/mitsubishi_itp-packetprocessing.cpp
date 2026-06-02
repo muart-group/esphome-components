@@ -8,7 +8,7 @@ void MitsubishiUART::route_packet_(const Packet &packet) {
   // If it came from the heatpump, send it back to the thermostat
   if (packet.get_controller_association() == ControllerAssociation::THERMOSTAT) {
     if (packet.get_source_bridge() == SourceBridge::THERMOSTAT) {
-      hp_bridge_.send_packet(packet);
+      // hp_bridge_.send_packet(packet);
     } else if (packet.get_source_bridge() == SourceBridge::HEATPUMP) {
       ts_bridge_->send_packet(packet);
     }

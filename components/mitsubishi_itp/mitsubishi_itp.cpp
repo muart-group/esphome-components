@@ -8,7 +8,7 @@ namespace mitsubishi_itp {
 ////
 
 MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
-    : hp_uart_{*hp_uart_comp}, hp_bridge_{HeatpumpBridge(hp_uart_comp, this)} {
+    : hp_uart_{*hp_uart_comp}, heatpump_{Heatpump(hp_uart_comp, this)} {
   /**
    * Climate pushes all its data to Home Assistant immediately when the API connects, this causes
    * the default 0 to be sent as temperatures, but since this is a valid value (0 deg C), it
@@ -23,18 +23,20 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
 // to invalidate previously stored preferences.
 const uint MITP_PREFERENCE_VERSION = 1;
 
-// Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
-// Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
-void MitsubishiUART::setup() {
-  for (auto *listener : listeners_) {
-    listener->setup();
-  }
-  preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
-  restore_preferences_();
-#ifdef USE_TIME
-  this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
-#endif
-}
+// // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
+// // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
+// void MitsubishiUART::setup() {
+//   for (auto *listener : listeners_) {
+//     listener->setup();
+//   }
+//   preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
+//   restore_preferences_();
+// #ifdef USE_TIME
+//   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
+// #endif
+// }
+
+void MitsubishiUART::setup() {}
 
 void MitsubishiUART::restore_preferences_() {
   MITPPreferences prefs;
@@ -56,41 +58,42 @@ void MitsubishiUART::save_preferences_() {
   preferences_.save(&prefs);
 }
 
-/* Used for receiving and acting on incoming packets as soon as they're available.
-  Because packet processing happens as part of the receiving process, packet processing
-  should not block for very long (e.g. no publishing inside the packet processing)
-*/
-void MitsubishiUART::loop() {
-  // Loop bridge to handle sending and receiving packets
-  hp_bridge_.loop();
-  if (ts_bridge_)
-    ts_bridge_->loop();
+// /* Used for receiving and acting on incoming packets as soon as they're available.
+//   Because packet processing happens as part of the receiving process, packet processing
+//   should not block for very long (e.g. no publishing inside the packet processing)
+// */
+// void MitsubishiUART::loop() {
+//   // Loop bridge to handle sending and receiving packets
+//   hp_bridge_.loop();
+//   if (ts_bridge_)
+//     ts_bridge_->loop();
 
-  // If we're not on timeout and not on Internal
-  if (!temperature_source_timeout_ && selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
-    // if it's been too long since we got a report for our current selected source
-    if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timeout_ms_) {
-      // Alert user and set heatpump to internal
-      ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
-               selected_temperature_source_.c_str(), (unsigned long) temperature_source_timeout_ms_);
-      // Let listeners know we've changed to the Internal temperature source (but do not change
-      // selected_temperature_source)
-      alert_listeners_internal_temp_(true);
-      temperature_source_timeout_ = true;
-      // Send a packet to the heat pump to tell it to switch to internal temperature sensing
-      hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
-    } else if (temperature_source_echo_ms_ > 0 &&
-               millis() - temperature_source_echo_last_timestamp_ > temperature_source_echo_ms_) {
-      // If we haven't timed out, and an echo is set, check and send the last temperature for the selected source
-      if (!isnan(temperature_reports_[selected_temperature_source_].temperature)) {
-        ESP_LOGD(TAG, "Echoing last received temperature");
-        hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
-            temperature_reports_[selected_temperature_source_].temperature));
-        temperature_source_echo_last_timestamp_ = millis();
-      }
-    }
-  }
-}
+//   // If we're not on timeout and not on Internal
+//   if (!temperature_source_timeout_ && selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
+//     // if it's been too long since we got a report for our current selected source
+//     if (millis() - temperature_reports_[selected_temperature_source_].timestamp > temperature_source_timeout_ms_) {
+//       // Alert user and set heatpump to internal
+//       ESP_LOGW(TAG, "No temperature received from %s for %lu milliseconds, reverting to Internal source",
+//                selected_temperature_source_.c_str(), (unsigned long) temperature_source_timeout_ms_);
+//       // Let listeners know we've changed to the Internal temperature source (but do not change
+//       // selected_temperature_source)
+//       alert_listeners_internal_temp_(true);
+//       temperature_source_timeout_ = true;
+//       // Send a packet to the heat pump to tell it to switch to internal temperature sensing
+//       hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
+//     } else if (temperature_source_echo_ms_ > 0 &&
+//                millis() - temperature_source_echo_last_timestamp_ > temperature_source_echo_ms_) {
+//       // If we haven't timed out, and an echo is set, check and send the last temperature for the selected source
+//       if (!isnan(temperature_reports_[selected_temperature_source_].temperature)) {
+//         ESP_LOGD(TAG, "Echoing last received temperature");
+//         hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
+//             temperature_reports_[selected_temperature_source_].temperature));
+//         temperature_source_echo_last_timestamp_ = millis();
+//       }
+//     }
+//   }
+// }
+void MitsubishiUART::loop() { heatpump_.loop(); }
 
 void MitsubishiUART::dump_config() {
   if (capabilities_cache_.has_value()) {
@@ -121,20 +124,20 @@ void MitsubishiUART::update() {
     return;
   }
 
-  // If we're not yet connected, send off a connection request (we'll check again next update)
-  if (!hp_connected_) {
-    hp_bridge_.send_packet(ConnectRequestPacket::instance());
-    return;
-  }
+  // // If we're not yet connected, send off a connection request (we'll check again next update)
+  // if (!hp_connected_) {
+  //   hp_bridge_.send_packet(ConnectRequestPacket::instance());
+  //   return;
+  // }
 
-  // Attempt to read capabilities on the next loop after connect.
-  // TODO: This should likely be done immediately after connect, and will likely need to block setup for proper
-  // autoconf.
-  //       For now, just requesting it as part of our "init loops" is a good first step.
-  if (!this->capabilities_requested_) {
-    hp_bridge_.send_packet(CapabilitiesRequestPacket::instance());
-    this->capabilities_requested_ = true;
-  }
+  // // Attempt to read capabilities on the next loop after connect.
+  // // TODO: This should likely be done immediately after connect, and will likely need to block setup for proper
+  // // autoconf.
+  // //       For now, just requesting it as part of our "init loops" is a good first step.
+  // if (!this->capabilities_requested_) {
+  //   hp_bridge_.send_packet(CapabilitiesRequestPacket::instance());
+  //   this->capabilities_requested_ = true;
+  // }
 
   // Before requesting additional updates, publish any changes waiting from packets received
 
@@ -149,37 +152,37 @@ void MitsubishiUART::update() {
     publish_on_update_ = false;
   }
 
-  // Request an update from the heatpump
-  // TODO: This isn't a problem *yet*, but sending all these packets every loop might start to cause some issues
-  // in
-  //       certain configurations or setups. We may want to consider only asking for certain packets on a rarer
-  //       cadence, depending on their utility (e.g. we dont need to check for errors every loop).
-  hp_bridge_.send_packet(
-      GetRequestPacket::get_settings_instance());  // Needs to be done before status packet for mode logic to work
-  if (in_discovery_ || run_state_received_) {
-    hp_bridge_.send_packet(GetRequestPacket::get_runstate_instance());
-  }
+  // // Request an update from the heatpump
+  // // TODO: This isn't a problem *yet*, but sending all these packets every loop might start to cause some issues
+  // // in
+  // //       certain configurations or setups. We may want to consider only asking for certain packets on a rarer
+  // //       cadence, depending on their utility (e.g. we dont need to check for errors every loop).
+  // hp_bridge_.send_packet(
+  //     GetRequestPacket::get_settings_instance());  // Needs to be done before status packet for mode logic to work
+  // if (in_discovery_ || run_state_received_) {
+  //   hp_bridge_.send_packet(GetRequestPacket::get_runstate_instance());
+  // }
 
-  hp_bridge_.send_packet(GetRequestPacket::get_status_instance());
-  hp_bridge_.send_packet(GetRequestPacket::get_current_temp_instance());
-  hp_bridge_.send_packet(GetRequestPacket::get_error_info_instance());
+  // hp_bridge_.send_packet(GetRequestPacket::get_status_instance());
+  // hp_bridge_.send_packet(GetRequestPacket::get_current_temp_instance());
+  // hp_bridge_.send_packet(GetRequestPacket::get_error_info_instance());
 
-  if (zones_enabled_) {
-    hp_bridge_.send_packet(GetRequestPacket::get_zone_instance());
-  }
+  // if (zones_enabled_) {
+  //   hp_bridge_.send_packet(GetRequestPacket::get_zone_instance());
+  // }
 
-  if (in_discovery_) {
-    // After criteria met, exit discovery mode
-    // Currently this is either 5 updates or a successful RunState response.
-    if (discovery_updates_++ > 5 || run_state_received_) {
-      ESP_LOGD(TAG, "Discovery complete.");
-      in_discovery_ = false;
+  // if (in_discovery_) {
+  //   // After criteria met, exit discovery mode
+  //   // Currently this is either 5 updates or a successful RunState response.
+  //   if (discovery_updates_++ > 5 || run_state_received_) {
+  //     ESP_LOGD(TAG, "Discovery complete.");
+  //     in_discovery_ = false;
 
-      if (!run_state_received_) {
-        ESP_LOGI(TAG, "RunState packets not supported.");
-      }
-    }
-  }
+  //     if (!run_state_received_) {
+  //       ESP_LOGI(TAG, "RunState packets not supported.");
+  //     }
+  //   }
+  // }
 }
 
 void MitsubishiUART::do_publish_() {
@@ -194,14 +197,14 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
   // If we've switched to internal, let the HP know right away
   if (TEMPERATURE_SOURCE_INTERNAL == state) {
     alert_listeners_internal_temp_(true);
-    hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
+    // hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_use_internal_temperature(true));
   } else {
     // If we have a fresh temperature already, go ahead and send it immediately.
     if (millis() - temperature_reports_[selected_temperature_source_].timestamp < temperature_source_timeout_ms_ &&
         !isnan(temperature_reports_[selected_temperature_source_].temperature)) {
-      hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
-          temperature_reports_[selected_temperature_source_].temperature));
-      alert_listeners_internal_temp_(false);
+      // hp_bridge_.send_packet(RemoteTemperatureSetRequestPacket().set_remote_temperature(
+      // temperature_reports_[selected_temperature_source_].temperature));
+      // alert_listeners_internal_temp_(false);
     } else {
       // Otherwise, reset that report so it doesn't immediately timeout
       temperature_reports_[selected_temperature_source_].timestamp = millis();
@@ -237,7 +240,7 @@ bool MitsubishiUART::select_vane_position(const std::string &state) {
     return false;
   }
 
-  hp_bridge_.send_packet(SettingsSetRequestPacket().set_vane(position_byte));
+  // hp_bridge_.send_packet(SettingsSetRequestPacket().set_vane(position_byte));
   return true;
 }
 
@@ -268,7 +271,7 @@ bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
     return false;
   }
 
-  hp_bridge_.send_packet(SettingsSetRequestPacket().set_horizontal_vane(position_byte));
+  // hp_bridge_.send_packet(SettingsSetRequestPacket().set_horizontal_vane(position_byte));
   return true;
 }
 
@@ -301,7 +304,7 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
     // get it
     RemoteTemperatureSetRequestPacket pkt = RemoteTemperatureSetRequestPacket();
     pkt.set_remote_temperature(v);
-    hp_bridge_.send_packet(pkt);
+    // hp_bridge_.send_packet(pkt);
 
     // If we're using echos, update the last sent so the echo waits properly
     if (temperature_source_echo_ms_ > 0) {
@@ -315,7 +318,7 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
 
 bool MitsubishiUART::set_zone_active(uint8_t zone, bool active) {
   ESP_LOGI(TAG, "Setting zone %d to %s", zone + 1, active ? "ON" : "OFF");
-  hp_bridge_.send_packet(ZoneSetRequestPacket().set_zone_active(zone, active));
+  // hp_bridge_.send_packet(ZoneSetRequestPacket().set_zone_active(zone, active));
   return true;
 }
 
@@ -324,7 +327,7 @@ void MitsubishiUART::reset_filter_status() {
 
   SetRunStatePacket pkt = SetRunStatePacket();
   pkt.set_filter_reset(true);
-  hp_bridge_.send_packet(pkt);
+  // hp_bridge_.send_packet(pkt);
 }
 
 }  // namespace mitsubishi_itp

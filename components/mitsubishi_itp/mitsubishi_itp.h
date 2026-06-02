@@ -12,7 +12,9 @@
 #include "itp_packetprocessor.h"
 #include "mitp_bridge.h"
 #include "mitp_mhk.h"
+#include "itp_heatpump.h"
 #include <map>
+#include <coroutine>
 
 using namespace itp_packet;
 
@@ -150,12 +152,14 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // UARTComponent connected to heatpump
   const uart::UARTComponent &hp_uart_;
-  // UART packet wrapper for heatpump
-  HeatpumpBridge hp_bridge_;
+  // // UART packet wrapper for heatpump
+  // HeatpumpBridge hp_bridge_;
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
   // UART packet wrapper for heatpump
   std::unique_ptr<ThermostatBridge> ts_bridge_ = nullptr;
+
+  Heatpump heatpump_;
 
   // Are we connected to the heatpump?
   bool hp_connected_ = false;
