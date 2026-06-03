@@ -10,14 +10,14 @@ Heatpump::Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_
 
 void Heatpump::loop() {
   if (!update_task_.is_running() && millis() - update_sent_millis_ > 16000) {
-    ESP_LOGD("itp_heatpump", "Starting new update_task");
+    ESP_LOGD(TAG, "Starting new update_task");
     update_task_ = do_update_queries();
   }
 
   if (current_request_ctx_) {
     // If there's a request in-flight, but it's been too long, timeout
     if (millis() - packet_sent_millis_ > 1000) {
-      current_request_ctx_->response = Response{.err = "Timed out waiting for packet"};
+      ESP_LOGW(TAG, "Timed out waiting for packet!");
       current_request_ctx_->handle.resume();
       current_request_ctx_ = nullptr;
     }
@@ -25,13 +25,13 @@ void Heatpump::loop() {
     // Otherwise, try to read a response packet
     else if (optional<RawPacket> pkt = receive_raw_packet_()) {
       // If we get a packet, read it into the response and resume the awaiter
-      current_request_ctx_->response = Response{.raw_packet = pkt.value(), .err = ""};
+      current_request_ctx_->raw_response = pkt;
       current_request_ctx_->handle.resume();
       current_request_ctx_ = nullptr;
     }
     // If we don't get one and haven't timed out, we'll keep waiting...
   } else if (!request_queue_.empty()) {
-    ESP_LOGD("itp_heatpump", "Queue not empty");
+    ESP_LOGD(TAG, "Queue not empty");
     // Otherwise if there's a request in the queue, pop and send.
     current_request_ctx_ = std::move(request_queue_.front());
     request_queue_.pop();  // Pop empty pointer (we're holding it in current_request_ctx_ now)
@@ -42,20 +42,20 @@ void Heatpump::loop() {
 }
 
 Task Heatpump::do_update_queries() {
-  ESP_LOGD("itp_heatpump", "Doing update!");
+  ESP_LOGD(TAG, "Doing update!");
   update_sent_millis_ = millis();
 
   std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
-  Response response = co_await RequestAwaiter(std::move(req), request_queue_);
+  optional<StatusGetResponsePacket> status_pkt =
+      co_await RequestAwaiter<StatusGetResponsePacket>(std::move(req), request_queue_);
 
-  if (response.raw_packet) {
+  if (status_pkt) {
     // TODO: Make sure it's the right packet
-    ESP_LOGD("itp_heatpump", "Got response");
-    ESP_LOGD("itp_heatpump", "Got response type %i", response.raw_packet.value().get_packet_type());
-    StatusGetResponsePacket rp = StatusGetResponsePacket(std::move(response.raw_packet.value()));
-    pkt_processor_.process_packet(rp);
+    ESP_LOGD(TAG, "Got response");
+    ESP_LOGD(TAG, "Got response type %i", status_pkt.value().get_packet_type());
+    pkt_processor_.process_packet(status_pkt.value());
   } else {
-    ESP_LOGW("itp_heatpump", "Error receiving packet: {}", response.err);
+    ESP_LOGW(TAG, "No status packet received!");
   }
 }
 
@@ -80,6 +80,7 @@ after the first byte has been received though, so currently we're assuming that 
 the header is available, it's safe to call read_array without timing out and severing
 the packet.
 */
+// TODO: Move this into loop to be less-blocking (only read if enough are available)
 optional<RawPacket> Heatpump::receive_raw_packet_() const {
   uint8_t packet_bytes[PACKET_MAX_SIZE];
   packet_bytes[0] = 0;  // Reset control byte before starting
@@ -101,7 +102,10 @@ optional<RawPacket> Heatpump::receive_raw_packet_() const {
 
   // Read payload + checksum
   uint8_t payload_size = packet_bytes[PACKET_HEADER_INDEX_PAYLOAD_LENGTH];
+  auto start = millis();
   uart_comp_.read_array(&packet_bytes[PACKET_HEADER_SIZE], payload_size + 1);
+  auto done = millis();
+  ESP_LOGD(TAG, "Took %i ms", done - start);
 
   return RawPacket(packet_bytes, PACKET_HEADER_SIZE + payload_size + 1);
 }
