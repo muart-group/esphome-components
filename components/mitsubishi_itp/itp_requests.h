@@ -1,6 +1,8 @@
 #pragma once
 
 #include "esphome/core/helpers.h"
+#include "esphome/components/uart/uart.h"
+#include <esp_log.h>
 #include "itp_packet.h"
 #include <coroutine>
 #include <queue>
@@ -11,6 +13,21 @@ namespace esphome {
 namespace mitsubishi_itp {
 
 static constexpr char REQUESTS_TAG[] = "mitsubishi_itp.requests";
+
+class ITPPacketReader {
+ public:
+  ITPPacketReader(uart::UARTComponent *uart_component, char *log_name)
+      : uart_comp_{*uart_component}, log_name_{log_name} {}
+
+ protected:
+  uart::UARTComponent &uart_comp_;
+  uint8_t packet_buffer_[PACKET_MAX_SIZE];
+  uint8_t buffer_position_ = 0;
+  optional<RawPacket> check_for_packet();
+
+ private:
+  char *log_name_;
+};
 
 // Provides an object to receive/manage the coroutine_handle, and check to see if coroutine is still running
 struct Task {

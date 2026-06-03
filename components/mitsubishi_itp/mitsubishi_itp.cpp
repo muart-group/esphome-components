@@ -93,7 +93,12 @@ void MitsubishiUART::save_preferences_() {
 //     }
 //   }
 // }
-void MitsubishiUART::loop() { heatpump_.loop(); }
+void MitsubishiUART::loop() {
+  heatpump_.loop();
+  if (thermostat_) {
+    thermostat_->loop();
+  }
+}
 
 void MitsubishiUART::dump_config() {
   if (capabilities_cache_.has_value()) {
@@ -109,6 +114,7 @@ void MitsubishiUART::dump_config() {
 void MitsubishiUART::set_thermostat_uart(uart::UARTComponent *uart) {
   ESP_LOGCONFIG(TAG, "Thermostat uart was set.");
   ts_uart_ = uart;
+  thermostat_ = make_unique<Thermostat>(ts_uart_, static_cast<PacketProcessor *>(this));
   ts_bridge_ = make_unique<ThermostatBridge>(ts_uart_, static_cast<PacketProcessor *>(this));
 }
 

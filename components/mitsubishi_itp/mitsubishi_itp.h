@@ -13,6 +13,7 @@
 #include "mitp_bridge.h"
 #include "mitp_mhk.h"
 #include "itp_heatpump.h"
+#include "itp_thermostat.h"
 #include <map>
 
 using namespace itp_packet;
@@ -159,6 +160,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   std::unique_ptr<ThermostatBridge> ts_bridge_ = nullptr;
 
   Heatpump heatpump_;
+  std::unique_ptr<Thermostat> thermostat_ = nullptr;
 
   // Are we connected to the heatpump?
   bool hp_connected_ = false;
