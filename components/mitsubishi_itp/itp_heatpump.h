@@ -14,6 +14,8 @@ using namespace itp_packet;
 namespace esphome {
 namespace mitsubishi_itp {
 
+static constexpr char HEATPUMP_TAG[] = "mitsubishi_itp.heatpump";
+
 class Heatpump {
  public:
   Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_processor);

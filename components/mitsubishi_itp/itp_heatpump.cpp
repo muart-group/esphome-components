@@ -10,14 +10,14 @@ Heatpump::Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_
 
 void Heatpump::loop() {
   if (!update_task_.is_running() && millis() - update_sent_millis_ > 16000) {
-    ESP_LOGD(TAG, "Starting new update_task");
+    ESP_LOGD(HEATPUMP_TAG, "Starting new update_task");
     update_task_ = do_update_queries();
   }
 
   if (current_request_ctx_) {
     // If there's a request in-flight, but it's been too long, timeout
     if (millis() - packet_sent_millis_ > 1000) {
-      ESP_LOGW(TAG, "Timed out waiting for packet!");
+      ESP_LOGW(HEATPUMP_TAG, "Timed out waiting for packet!");
       current_request_ctx_->handle.resume();
       current_request_ctx_ = nullptr;
     }
@@ -31,7 +31,7 @@ void Heatpump::loop() {
     }
     // If we don't get one and haven't timed out, we'll keep waiting...
   } else if (!request_queue_.empty()) {
-    ESP_LOGD(TAG, "Queue not empty");
+    ESP_LOGD(HEATPUMP_TAG, "Queue not empty");
     // Otherwise if there's a request in the queue, pop and send.
     current_request_ctx_ = std::move(request_queue_.front());
     request_queue_.pop();  // Pop empty pointer (we're holding it in current_request_ctx_ now)
@@ -42,7 +42,7 @@ void Heatpump::loop() {
 }
 
 Task Heatpump::do_update_queries() {
-  ESP_LOGD(TAG, "Doing update!");
+  ESP_LOGD(HEATPUMP_TAG, "Doing update!");
   update_sent_millis_ = millis();
 
   std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
@@ -51,11 +51,11 @@ Task Heatpump::do_update_queries() {
 
   if (status_pkt) {
     // TODO: Make sure it's the right packet
-    ESP_LOGD(TAG, "Got response");
-    ESP_LOGD(TAG, "Got response type %i", status_pkt.value().get_packet_type());
+    ESP_LOGD(HEATPUMP_TAG, "Got response");
+    ESP_LOGD(HEATPUMP_TAG, "Got response type %i", status_pkt.value().get_packet_type());
     pkt_processor_.process_packet(status_pkt.value());
   } else {
-    ESP_LOGW(TAG, "No status packet received!");
+    ESP_LOGW(HEATPUMP_TAG, "No status packet received!");
   }
 }
 
@@ -105,7 +105,7 @@ optional<RawPacket> Heatpump::receive_raw_packet_() const {
   auto start = millis();
   uart_comp_.read_array(&packet_bytes[PACKET_HEADER_SIZE], payload_size + 1);
   auto done = millis();
-  ESP_LOGD(TAG, "Took %i ms", done - start);
+  ESP_LOGD(HEATPUMP_TAG, "Took %i ms", done - start);
 
   return RawPacket(packet_bytes, PACKET_HEADER_SIZE + payload_size + 1);
 }
