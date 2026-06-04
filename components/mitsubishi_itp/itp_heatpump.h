@@ -16,16 +16,13 @@ namespace mitsubishi_itp {
 
 static constexpr char HEATPUMP_TAG[] = "mitsubishi_itp.heatpump";
 
-class Heatpump {
+class Heatpump : public ITPPacketReader {
  public:
   Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_processor);
   void loop();
 
   // Probably not thread-safe, but this is single-threaded app so this should be fine
   std::queue<std::unique_ptr<RequestContext>> request_queue_;
-
- protected:
-  optional<RawPacket> receive_raw_packet_() const;
 
  private:
   void write_raw_packet_(const RawPacket &packet_to_send) const;

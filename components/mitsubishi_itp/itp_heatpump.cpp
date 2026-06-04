@@ -4,7 +4,7 @@ namespace esphome {
 namespace mitsubishi_itp {
 
 Heatpump::Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_processor)
-    : uart_comp_{*uart_component}, pkt_processor_{*packet_processor} {
+    : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, pkt_processor_{*packet_processor} {
   // update_task_ = do_connect();
 }
 
@@ -23,7 +23,7 @@ void Heatpump::loop() {
     }
 
     // Otherwise, try to read a response packet
-    else if (optional<RawPacket> pkt = receive_raw_packet_()) {
+    else if (optional<RawPacket> pkt = check_for_packet()) {
       // If we get a packet, read it into the response and resume the awaiter
       current_request_ctx_->raw_response = pkt;
       current_request_ctx_->handle.resume();
@@ -31,7 +31,6 @@ void Heatpump::loop() {
     }
     // If we don't get one and haven't timed out, we'll keep waiting...
   } else if (!request_queue_.empty()) {
-    ESP_LOGD(HEATPUMP_TAG, "Queue not empty");
     // Otherwise if there's a request in the queue, pop and send.
     current_request_ctx_ = std::move(request_queue_.front());
     request_queue_.pop();  // Pop empty pointer (we're holding it in current_request_ctx_ now)
@@ -69,46 +68,6 @@ Task Heatpump::do_update_queries() {
 //   ConnectResponsePacket rp = ConnectResponsePacket(std::move(response));
 //   pkt_processor_.process_packet(rp);
 // }
-
-/* Reads and deserializes a packet from UART.
-Communication with heatpump is *slow*, so we need to check and make sure there are
-enough packets available before we start reading.  If there aren't enough packets,
-no packet will be returned.
-
-Even at 2400 baud, the 100ms readtimeout should be enough to read a whole payload
-after the first byte has been received though, so currently we're assuming that once
-the header is available, it's safe to call read_array without timing out and severing
-the packet.
-*/
-// TODO: Move this into loop to be less-blocking (only read if enough are available)
-optional<RawPacket> Heatpump::receive_raw_packet_() const {
-  uint8_t packet_bytes[PACKET_MAX_SIZE];
-  packet_bytes[0] = 0;  // Reset control byte before starting
-
-  // Drain UART until we see a control byte (times out after 100ms in UARTComponent)
-  while (uart_comp_.available() >= PACKET_HEADER_SIZE && uart_comp_.read_byte(&packet_bytes[0])) {
-    if (packet_bytes[0] == BYTE_CONTROL)
-      break;
-    // TODO: If the serial is all garbage, this may never stop-- we should have our own timeout
-  }
-
-  // If we never found a control byte, we didn't receive a packet
-  if (packet_bytes[0] != BYTE_CONTROL) {
-    return nullopt;
-  }
-
-  // Read the header
-  uart_comp_.read_array(&packet_bytes[1], PACKET_HEADER_SIZE - 1);
-
-  // Read payload + checksum
-  uint8_t payload_size = packet_bytes[PACKET_HEADER_INDEX_PAYLOAD_LENGTH];
-  auto start = millis();
-  uart_comp_.read_array(&packet_bytes[PACKET_HEADER_SIZE], payload_size + 1);
-  auto done = millis();
-  ESP_LOGD(HEATPUMP_TAG, "Took %i ms", done - start);
-
-  return RawPacket(packet_bytes, PACKET_HEADER_SIZE + payload_size + 1);
-}
 
 void Heatpump::write_raw_packet_(const RawPacket &packet_to_send) const {
   uart_comp_.write_array(packet_to_send.get_bytes(), packet_to_send.get_length());
