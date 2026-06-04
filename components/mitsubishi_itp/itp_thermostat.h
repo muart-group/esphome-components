@@ -18,7 +18,7 @@ static constexpr char THERMOSTAT_TAG[] = "mitsubishi_itp.thermostat";
 
 class Thermostat : public ITPPacketReader {
  public:
-  Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump);
+  Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump, ThermostatSubscriber *subscriber);
   void loop();
 
  protected:
@@ -27,7 +27,7 @@ class Thermostat : public ITPPacketReader {
     ESP_LOGV(THERMOSTAT_TAG, "Receiving thermostat packet %s", req->request.to_string().c_str());
 
     optional<ResponseType> response_pkt =
-        co_await RequestAwaiter<ResponseType>(std::move(req), connected_heatpump_.request_queue_);
+        co_await RequestAwaiter<ResponseType, Heatpump>(std::move(req), connected_heatpump_);
 
     if (response_pkt) {
       ESP_LOGV(THERMOSTAT_TAG, "Sending thermostat packet %s", response_pkt.value().to_string().c_str());
@@ -39,7 +39,8 @@ class Thermostat : public ITPPacketReader {
 
  private:
   Heatpump &connected_heatpump_;  // Heat pump responsible for handling incoming packets
-  Task in_flight_request_;        // Packet currently out for processing by MITP/Heatpump
+  ThermostatSubscriber &subscriber_;
+  Task in_flight_request_;  // Packet currently out for processing by MITP/Heatpump
 
   Task handle_thermostat_request(RawPacket &raw_request_packet);
 

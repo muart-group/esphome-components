@@ -4,6 +4,7 @@
 #include "esphome/components/uart/uart.h"
 #include <esp_log.h>
 #include "itp_packet.h"
+#include "itp_packets.h"
 #include <coroutine>
 #include <queue>
 
@@ -14,6 +15,7 @@ namespace mitsubishi_itp {
 
 static constexpr char REQUESTS_TAG[] = "mitsubishi_itp.requests";
 
+// Common base class for heatpumps and thermostats to provide packet buffer and check_for_packet functionality
 class ITPPacketReader {
  public:
   ITPPacketReader(uart::UARTComponent *uart_component, char *log_name)
@@ -28,6 +30,25 @@ class ITPPacketReader {
  private:
   char *log_name_;
 };
+
+// Subscriber for heatpump change notifications
+class HeatpumpSubscriber {
+ public:
+  HeatpumpSubscriber(){};
+  virtual void mode_change(SettingsSetRequestPacket::ModeByte mode){};
+  virtual void fan_change(SettingsSetRequestPacket::FanByte fan){};
+};
+
+// Subscriber for thermostat change notifications
+class ThermostatSubscriber {
+ public:
+  virtual void thermostat_temp_change(float degC){};
+  virtual void thermostat_humidity_change(float rh_percent){};
+};
+
+//
+// COROUTINE COMPONENTS
+//
 
 // Provides an object to receive/manage the coroutine_handle, and check to see if coroutine is still running
 struct Task {
@@ -80,17 +101,21 @@ struct RequestContext {
   RequestContext(Packet request) : request(request) {}
 };
 
+// TODO: When we decide to start responding with cached packets, this struct should be modified to:
+// - Move push to queue to await_suspend
+// - In await_ready() call a lambda or function on Heatpump to ask for cached response
+
 // "Awaiter" for requests sent to heatpump
 // On construction, this will keep a non-owned copy of the context pointer for use on resume,
 // and move ownership of the context to the provided queue.
-template<class PType> struct RequestAwaiter {
+template<class PType, class RequestHandler> struct RequestAwaiter {
   static_assert(std::is_base_of_v<Packet, PType>, "PType must derive from Packet");
   RequestContext *ctx_ptr;
-  std::queue<std::unique_ptr<RequestContext>> &request_queue;
+  RequestHandler &request_handler;
 
-  RequestAwaiter(std::unique_ptr<RequestContext> &&req, std::queue<std::unique_ptr<RequestContext>> &queue)
-      : ctx_ptr(req.get()), request_queue(queue) {
-    request_queue.push(std::move(req));  // Queue takes ownership
+  RequestAwaiter(std::unique_ptr<RequestContext> &&req, RequestHandler &handler)
+      : ctx_ptr(req.get()), request_handler(handler) {
+    request_handler.enqueue_request(std::move(req));  // Handler takes ownership
   }
 
   bool await_ready() { return false; }

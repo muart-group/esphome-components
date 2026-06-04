@@ -32,7 +32,10 @@ inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
 const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
 
-class MitsubishiUART : public PollingComponent, public climate::Climate, public PacketProcessor {
+class MitsubishiUART : public PollingComponent,
+                       public climate::Climate,
+                       public HeatpumpSubscriber,
+                       public ThermostatSubscriber {
  public:
   /**
    * Create a new MitsubishiUART with the specified esphome::uart::UARTComponent.
@@ -108,31 +111,31 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   void route_packet_(const Packet &packet);
   float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
 
-  void process_packet(const Packet &packet) override;
-  void process_packet(const ConnectRequestPacket &packet) override;
-  void process_packet(const ConnectResponsePacket &packet) override;
-  void process_packet(const CapabilitiesRequestPacket &packet) override;
-  void process_packet(const CapabilitiesResponsePacket &packet) override;
-  void process_packet(const GetRequestPacket &packet) override;
-  void process_packet(const SettingsGetResponsePacket &packet) override;
-  void process_packet(const CurrentTempGetResponsePacket &packet) override;
-  void process_packet(const StatusGetResponsePacket &packet) override;
-  void process_packet(const RunStateGetResponsePacket &packet) override;
-  void process_packet(const ErrorStateGetResponsePacket &packet) override;
-  void process_packet(const Functions1GetResponsePacket &packet) override;
-  void process_packet(const Functions2GetResponsePacket &packet) override;
-  void process_packet(const SettingsSetRequestPacket &packet) override;
-  void process_packet(const RemoteTemperatureSetRequestPacket &packet) override;
-  void process_packet(const ThermostatSensorStatusPacket &packet) override;
-  void process_packet(const ThermostatHelloPacket &packet) override;
-  void process_packet(const ThermostatStateUploadPacket &packet) override;
-  void process_packet(const ThermostatAASetRequestPacket &packet) override;
-  void process_packet(const ZoneGetResponsePacket &packet) override;
-  void process_packet(const ZoneSetRequestPacket &packet) override;
-  void process_packet(const SetResponsePacket &packet) override;
+  void process_packet(const Packet &packet);
+  void process_packet(const ConnectRequestPacket &packet);
+  void process_packet(const ConnectResponsePacket &packet);
+  void process_packet(const CapabilitiesRequestPacket &packet);
+  void process_packet(const CapabilitiesResponsePacket &packet);
+  void process_packet(const GetRequestPacket &packet);
+  void process_packet(const SettingsGetResponsePacket &packet);
+  void process_packet(const CurrentTempGetResponsePacket &packet);
+  void process_packet(const StatusGetResponsePacket &packet);
+  void process_packet(const RunStateGetResponsePacket &packet);
+  void process_packet(const ErrorStateGetResponsePacket &packet);
+  void process_packet(const Functions1GetResponsePacket &packet);
+  void process_packet(const Functions2GetResponsePacket &packet);
+  void process_packet(const SettingsSetRequestPacket &packet);
+  void process_packet(const RemoteTemperatureSetRequestPacket &packet);
+  void process_packet(const ThermostatSensorStatusPacket &packet);
+  void process_packet(const ThermostatHelloPacket &packet);
+  void process_packet(const ThermostatStateUploadPacket &packet);
+  void process_packet(const ThermostatAASetRequestPacket &packet);
+  void process_packet(const ZoneGetResponsePacket &packet);
+  void process_packet(const ZoneSetRequestPacket &packet);
+  void process_packet(const SetResponsePacket &packet);
 
-  void handle_thermostat_state_download_request(const GetRequestPacket &packet) override;
-  void handle_thermostat_ab_get_request(const GetRequestPacket &packet) override;
+  void handle_thermostat_state_download_request(const GetRequestPacket &packet);
+  void handle_thermostat_ab_get_request(const GetRequestPacket &packet);
 
   void do_publish_();
 

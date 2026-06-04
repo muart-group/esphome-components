@@ -3,8 +3,11 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-Thermostat::Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump)
-    : ITPPacketReader(uart_component, "Thermostat"), connected_heatpump_{*connected_heatpump} {}
+Thermostat::Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump,
+                       ThermostatSubscriber *subscriber)
+    : ITPPacketReader(uart_component, "Thermostat"),
+      connected_heatpump_{*connected_heatpump},
+      subscriber_{*subscriber} {}
 
 void Thermostat::loop() {
   if (in_flight_request_.is_running()) {

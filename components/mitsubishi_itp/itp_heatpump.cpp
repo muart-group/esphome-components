@@ -3,15 +3,17 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-Heatpump::Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_processor)
-    : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, pkt_processor_{*packet_processor} {
-  // update_task_ = do_connect();
-}
+Heatpump::Heatpump(uart::UARTComponent *uart_component, HeatpumpSubscriber *subscriber)
+    : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, subscriber_{*subscriber} {}
 
 void Heatpump::loop() {
-  if (!update_task_.is_running() && millis() - update_sent_millis_ > 16000) {
+  // If we're disconnected try to connect
+  // If we're connected, periodically ask for updates
+  if (!state_.connected && !hp_task_.is_running()) {
+    hp_task_ = do_connect();
+  } else if (state_.connected && !hp_task_.is_running() && millis() - update_completed_millis_ > 16000) {
     ESP_LOGD(HEATPUMP_TAG, "Starting new update_task");
-    update_task_ = do_update_queries();
+    hp_task_ = do_update_queries();
   }
 
   if (current_request_ctx_) {
@@ -40,34 +42,91 @@ void Heatpump::loop() {
   }
 }
 
-Task Heatpump::do_update_queries() {
-  ESP_LOGD(HEATPUMP_TAG, "Doing update!");
-  update_sent_millis_ = millis();
+void Heatpump::enqueue_request(std::unique_ptr<RequestContext> req) { request_queue_.push(std::move(req)); }
 
-  std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
-  optional<StatusGetResponsePacket> status_pkt =
-      co_await RequestAwaiter<StatusGetResponsePacket>(std::move(req), request_queue_);
+Task Heatpump::do_connect() {
+  // Send connect packet
+  std::unique_ptr<RequestContext> connect_req = std::make_unique<RequestContext>(ConnectRequestPacket::instance());
+  optional<ConnectResponsePacket> connect_res =
+      co_await RequestAwaiter<ConnectResponsePacket, Heatpump>(std::move(connect_req), *this);
 
-  if (status_pkt) {
-    // TODO: Make sure it's the right packet
-    ESP_LOGD(HEATPUMP_TAG, "Got response");
-    ESP_LOGD(HEATPUMP_TAG, "Got response type %i", status_pkt.value().get_packet_type());
-    pkt_processor_.process_packet(status_pkt.value());
-  } else {
-    ESP_LOGW(HEATPUMP_TAG, "No status packet received!");
+  if (connect_res) {
+    state_.connected = true;  // Connected!
+
+    // Once we're connected, try once to discover
+    std::unique_ptr<RequestContext> disc_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_runstate_instance());
+    optional<RunStateGetResponsePacket> disc_res =
+        co_await RequestAwaiter<RunStateGetResponsePacket, Heatpump>(std::move(disc_req), *this);
+
+    if (disc_res) {
+      ESP_LOGV(HEATPUMP_TAG, "Received %s", disc_res->to_string().c_str());
+    } else {
+      ESP_LOGI(HEATPUMP_TAG, "RunState packets not supported.");
+    }
   }
 }
 
-// Task Heatpump::do_connect() {
-//   ESP_LOGD("itp_heatpump", "Doing update!");
-//   update_sent_millis_ = millis();
-//   RawPacket response =
-//       co_await RequestAwaiter{.to_send = ConnectRequestPacket::instance(), .pkt_queue = request_queue_};
-//   // TODO: Make sure it's the right packet
-//   ESP_LOGD("itp_heatpump", "Got response type %i", response.get_packet_type());
-//   ConnectResponsePacket rp = ConnectResponsePacket(std::move(response));
-//   pkt_processor_.process_packet(rp);
-// }
+Task Heatpump::do_update_queries() {
+  ESP_LOGD(HEATPUMP_TAG, "Doing update!");
+
+  // Settings & Status processed together for mode logic to work
+  std::unique_ptr<RequestContext> settings_req =
+      std::make_unique<RequestContext>(GetRequestPacket::get_settings_instance());
+  optional<SettingsGetResponsePacket> settings_res =
+      co_await RequestAwaiter<SettingsGetResponsePacket, Heatpump>(std::move(settings_req), *this);
+
+  std::unique_ptr<RequestContext> status_req =
+      std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
+  optional<StatusGetResponsePacket> status_res =
+      co_await RequestAwaiter<StatusGetResponsePacket, Heatpump>(std::move(status_req), *this);
+
+  if (settings_res && status_res) {
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", settings_res->to_string().c_str());
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", status_res->to_string().c_str());
+    // TODO: process
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Settings/Status Packet not recevied!");
+  }
+
+  // Current temp
+  std::unique_ptr<RequestContext> temp_req =
+      std::make_unique<RequestContext>(GetRequestPacket::get_current_temp_instance());
+  optional<CurrentTempGetResponsePacket> temp_res =
+      co_await RequestAwaiter<CurrentTempGetResponsePacket, Heatpump>(std::move(temp_req), *this);
+  if (temp_res) {
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", temp_res->to_string().c_str());
+    // TODO: process
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Current Temperature Packet not recevied!");
+  }
+
+  // Error Info
+  std::unique_ptr<RequestContext> error_req =
+      std::make_unique<RequestContext>(GetRequestPacket::get_error_info_instance());
+  optional<ErrorStateGetResponsePacket> error_res =
+      co_await RequestAwaiter<ErrorStateGetResponsePacket, Heatpump>(std::move(error_req), *this);
+  if (error_res) {
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", error_res->to_string().c_str());
+    // TODO: process
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Error Info Packet not recevied!");
+  }
+
+  // Zones (may not work on all units)
+  // TODO: Add zone support setting to avoid these timeouts
+  std::unique_ptr<RequestContext> zone_req = std::make_unique<RequestContext>(GetRequestPacket::get_zone_instance());
+  optional<ZoneGetResponsePacket> zone_res =
+      co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
+  if (zone_res) {
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
+    // TODO: process
+  } else {
+    ESP_LOGI(HEATPUMP_TAG, "Zone info packet not received (may not be supported).");
+  }
+
+  update_completed_millis_ = millis();
+}
 
 void Heatpump::write_raw_packet_(const RawPacket &packet_to_send) const {
   uart_comp_.write_array(packet_to_send.get_bytes(), packet_to_send.get_length());
