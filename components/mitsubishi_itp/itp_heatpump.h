@@ -21,6 +21,9 @@ class Heatpump {
   Heatpump(uart::UARTComponent *uart_component, PacketProcessor *packet_processor);
   void loop();
 
+  // Probably not thread-safe, but this is single-threaded app so this should be fine
+  std::queue<std::unique_ptr<RequestContext>> request_queue_;
+
  protected:
   optional<RawPacket> receive_raw_packet_() const;
 
@@ -28,7 +31,7 @@ class Heatpump {
   void write_raw_packet_(const RawPacket &packet_to_send) const;
   uart::UARTComponent &uart_comp_;
   PacketProcessor &pkt_processor_;
-  std::queue<std::unique_ptr<RequestContext>> request_queue_;
+
   Task update_task_;
   uint32_t update_sent_millis_ = 0;
   uint32_t packet_sent_millis_ = 0;

@@ -114,7 +114,7 @@ void MitsubishiUART::dump_config() {
 void MitsubishiUART::set_thermostat_uart(uart::UARTComponent *uart) {
   ESP_LOGCONFIG(TAG, "Thermostat uart was set.");
   ts_uart_ = uart;
-  thermostat_ = make_unique<Thermostat>(ts_uart_, static_cast<PacketProcessor *>(this));
+  thermostat_ = make_unique<Thermostat>(ts_uart_, &heatpump_);
   ts_bridge_ = make_unique<ThermostatBridge>(ts_uart_, static_cast<PacketProcessor *>(this));
 }
 

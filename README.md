@@ -22,3 +22,28 @@ external_components:
       type: local
       path: /workspaces/muart-group/esphome-components/components
 ```
+
+## Architecture Notes
+
+To help keep things a little more organized and easy to understand, some quick notes on the architecture:
+
+### ITPPacketReader
+A virtual class with logic for receiving and parsing ITP Packets.
+
+### Heatpump
+`extends ITPPacketReader`
+
+Represents a UART-connected ITP Heatpump. Responsible for sending and receiving packets to/from the heatpump, and tracking the heatpump's current state.
+
+### Thermostat
+`extends ITPPacketReader`
+
+Represents a UART-connected ITP Thermostat (e.g. MHK2). Responsible for receiving packets from the thermostat and sending them to the [Heatpump](#heatpump) for
+
+### HeatpumpSubscriber
+
+An interface for classes that want updates from the Heatpump (changes in Heatpump state will be sent via this)
+
+### ThermostatSubscriber
+
+An interface for classes that want updates from the Thermostat. Unlike the heatpump there may not be a stored state for the thermostat, but information about temperature and humidity will be reported.

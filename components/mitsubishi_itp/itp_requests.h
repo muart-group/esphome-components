@@ -97,18 +97,10 @@ template<class PType> struct RequestAwaiter {
 
   void await_suspend(std::coroutine_handle<> h) { ctx_ptr->handle = h; }
 
-  bool x_validate_type(const RawPacket &pkt) {
-    return pkt.get_packet_type() == static_cast<uint8_t>(PacketType::GET_RESPONSE) &&
-           pkt.get_command() == static_cast<uint8_t>(GetCommand::STATUS);
-  }
-
   optional<PType> await_resume() {
     ESP_LOGD(REQUESTS_TAG, "Resuming!");
     if (ctx_ptr->raw_response) {
-      ESP_LOGD(REQUESTS_TAG, "Raw type:%i", ctx_ptr->raw_response.value().get_packet_type());
-      ESP_LOGD(REQUESTS_TAG, "Raw command:%i", ctx_ptr->raw_response.value().get_command());
       ESP_LOGD(REQUESTS_TAG, "Validate result:%d", PType::validate_type(ctx_ptr->raw_response.value()));
-      ESP_LOGD(REQUESTS_TAG, "XValidate result:%d", x_validate_type(ctx_ptr->raw_response.value()));
       return Packet::try_from_raw<PType>(std::move(ctx_ptr->raw_response.value()));
       // return PType(std::move(ctx_ptr->raw_response.value()));  // Last use of ctx_ptr before Awaiter is destroyed.
     }
