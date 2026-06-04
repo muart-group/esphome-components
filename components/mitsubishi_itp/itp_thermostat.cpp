@@ -20,12 +20,21 @@ void Thermostat::loop() {
   }
 }
 
+// TODO: Keep filling all these in
 Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
   switch (static_cast<PacketType>(raw_request_packet.get_packet_type())) {
     case PacketType::CONNECT_REQUEST:
       return send_to_heatpump<ConnectRequestPacket, ConnectResponsePacket>(raw_request_packet);
       break;
+    case PacketType::GET_REQUEST:
+      switch (static_cast<GetCommand>(raw_request_packet.get_command())) {
+        case GetCommand::SETTINGS:
+          return send_to_heatpump<GetRequestPacket, SettingsGetResponsePacket>(raw_request_packet);
+      }
     default:
+      ESP_LOGI(THERMOSTAT_TAG, "Unexpected thermostat packet type %s/%s",
+               format_hex_pretty(raw_request_packet.get_packet_type()).c_str(),
+               format_hex_pretty(raw_request_packet.get_command()).c_str());
       return send_to_heatpump<Packet, UnknownPacket>(raw_request_packet);
       break;
   };
