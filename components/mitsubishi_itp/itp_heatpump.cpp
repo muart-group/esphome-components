@@ -3,15 +3,15 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-Heatpump::Heatpump(uart::UARTComponent *uart_component, HeatpumpSubscriber *subscriber)
-    : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, subscriber_{*subscriber} {}
+Heatpump::Heatpump(uart::UARTComponent *uart_component, ITPSystemState *sys_state)
+    : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, sys_state_{*sys_state} {}
 
 void Heatpump::loop() {
   // If we're disconnected try to connect
   // If we're connected, periodically ask for updates
-  if (!state_.connected && !hp_task_.is_running()) {
+  if (!connected_ && !hp_task_.is_running()) {
     hp_task_ = do_connect();
-  } else if (state_.connected && !hp_task_.is_running() && millis() - update_completed_millis_ > 16000) {
+  } else if (connected_ && !hp_task_.is_running() && millis() - update_completed_millis_ > 16000) {
     ESP_LOGD(HEATPUMP_TAG, "Starting new update_task");
     hp_task_ = do_update_queries();
   }
@@ -51,24 +51,41 @@ Task Heatpump::do_connect() {
       co_await RequestAwaiter<ConnectResponsePacket, Heatpump>(std::move(connect_req), *this);
 
   if (connect_res) {
-    state_.connected = true;  // Connected!
+    connected_ = true;  // Connected!
 
     // Once we're connected, try once to discover
-    std::unique_ptr<RequestContext> disc_req =
-        std::make_unique<RequestContext>(GetRequestPacket::get_runstate_instance());
-    optional<RunStateGetResponsePacket> disc_res =
-        co_await RequestAwaiter<RunStateGetResponsePacket, Heatpump>(std::move(disc_req), *this);
+    std::unique_ptr<RequestContext> disc_req = std::make_unique<RequestContext>(CapabilitiesRequestPacket::instance());
+    optional<CapabilitiesResponsePacket> disc_res =
+        co_await RequestAwaiter<CapabilitiesResponsePacket, Heatpump>(std::move(disc_req), *this);
 
     if (disc_res) {
       ESP_LOGV(HEATPUMP_TAG, "Received %s", disc_res->to_string().c_str());
+      sys_state_.cache_heatpump_packet(disc_res);
     } else {
-      ESP_LOGI(HEATPUMP_TAG, "RunState packets not supported.");
+      ESP_LOGI(HEATPUMP_TAG, "Capability packets not supported.");
     }
   }
 }
 
 Task Heatpump::do_update_queries() {
   ESP_LOGD(HEATPUMP_TAG, "Doing update!");
+
+  // Runstate
+  std::unique_ptr<RequestContext> runstate_req =
+      std::make_unique<RequestContext>(GetRequestPacket::get_runstate_instance());
+  // Check cache first
+  optional<RunStateGetResponsePacket> runstate_res = sys_state_.check_heatpump_cache<RunStateGetResponsePacket>();
+  // If not in cache, try requesting from heatpump
+  if (!runstate_res) {
+    runstate_res = co_await RequestAwaiter<RunStateGetResponsePacket, Heatpump>(std::move(runstate_req), *this);
+  }
+  // If we received it, cache it (cache will notify subscribed receivers)
+  if (runstate_res) {
+    ESP_LOGV(HEATPUMP_TAG, "Received %s", runstate_res->to_string().c_str());
+    sys_state_.cache_heatpump_packet(runstate_res);
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Runstate Packet not recevied!");
+  }
 
   // Settings & Status processed together for mode logic to work
   std::unique_ptr<RequestContext> settings_req =
@@ -84,7 +101,8 @@ Task Heatpump::do_update_queries() {
   if (settings_res && status_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", settings_res->to_string().c_str());
     ESP_LOGV(HEATPUMP_TAG, "Received %s", status_res->to_string().c_str());
-    // TODO: process
+    sys_state_.cache_heatpump_packet(settings_res);
+    sys_state_.cache_heatpump_packet(status_res);
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Settings/Status Packet not recevied!");
   }
@@ -96,7 +114,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<CurrentTempGetResponsePacket, Heatpump>(std::move(temp_req), *this);
   if (temp_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", temp_res->to_string().c_str());
-    // TODO: process
+    sys_state_.cache_heatpump_packet(temp_res);
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Current Temperature Packet not recevied!");
   }
@@ -108,7 +126,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<ErrorStateGetResponsePacket, Heatpump>(std::move(error_req), *this);
   if (error_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", error_res->to_string().c_str());
-    // TODO: process
+    sys_state_.cache_heatpump_packet(error_res);
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Error Info Packet not recevied!");
   }
@@ -120,7 +138,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
   if (zone_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
-    // TODO: process
+    sys_state_.cache_heatpump_packet(zone_res);
   } else {
     ESP_LOGI(HEATPUMP_TAG, "Zone info packet not received (may not be supported).");
   }
