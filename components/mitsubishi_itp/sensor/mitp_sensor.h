@@ -2,6 +2,7 @@
 
 #include "esphome/components/sensor/sensor.h"
 #include "../mitp_listener.h"
+#include "itp_packetreceiver.h"
 
 using namespace itp_packet;
 
@@ -21,33 +22,33 @@ class MITPSensor : public MITPListener, public sensor::Sensor {
   float mitp_sensor_state_ = NAN;
 };
 
-class CompressorFrequencySensor : public MITPSensor {
+class CompressorFrequencySensor : public MITPSensor, public HeatpumpPacketReceiver {
   void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
 };
 
-class InputWattsSensor : public MITPSensor {
+class InputWattsSensor : public MITPSensor, public HeatpumpPacketReceiver {
   void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
 };
 
-class LifetimeKwhSensor : public MITPSensor {
+class LifetimeKwhSensor : public MITPSensor, public HeatpumpPacketReceiver {
   void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
 };
 
-class OutdoorTemperatureSensor : public MITPSensor {
+class OutdoorTemperatureSensor : public MITPSensor, public HeatpumpPacketReceiver {
   void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
 };
 
-class RuntimeSensor : public MITPSensor {
+class RuntimeSensor : public MITPSensor, public HeatpumpPacketReceiver {
   void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
 };
 
-class ThermostatHumiditySensor : public MITPSensor {
+class ThermostatHumiditySensor : public MITPSensor, public ThermostatPacketReceiver {
   void process_packet(const ThermostatSensorStatusPacket &packet) {
     mitp_sensor_state_ = packet.get_indoor_humidity_percent();
   }
 };
 
-class ThermostatTemperatureSensor : public MITPSensor {
+class ThermostatTemperatureSensor : public MITPSensor, public ThermostatPacketReceiver {
   void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
     if (!packet.get_use_internal_temperature()) {
       mitp_sensor_state_ = packet.get_remote_temperature();

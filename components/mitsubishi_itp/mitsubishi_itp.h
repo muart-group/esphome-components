@@ -68,7 +68,13 @@ class MitsubishiUART : public PollingComponent,
   void set_thermostat_uart(uart::UARTComponent *uart);
 
   // Listener-sensors
-  void register_listener(MITPListener *listener) { this->listeners_.push_back(listener); }
+  void register_mitp_listener(MITPListener *listener) { this->listeners_.push_back(listener); }
+  void register_heatpump_receiver(HeatpumpPacketReceiver *receiver) {
+    itp_sys_state_.register_heatpump_receiver(receiver);
+  }
+  void register_thermostat_receiver(ThermostatPacketReceiver *receiver) {
+    itp_sys_state_.register_thermostat_receiver(receiver);
+  }
 
   // Temperature Source config
   void set_temperature_source_timeout_ms(const uint32_t timeout) { this->temperature_source_timeout_ms_ = timeout; }
@@ -180,11 +186,6 @@ class MitsubishiUART : public PollingComponent,
 
   // Listener-sensors
   std::vector<MITPListener *> listeners_{};
-  // template<typename T> void alert_listeners_packet_(const T &packet) const {
-  //   for (auto *listener : this->listeners_) {
-  //     listener->process_packet(packet);
-  //   }
-  // }
   void alert_listeners_internal_temp_(const bool using_internal) const {
     for (auto *listener : this->listeners_) {
       listener->using_internal_temperature(using_internal);

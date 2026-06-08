@@ -6,11 +6,11 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-class MITPSelect : public select::Select, public Parented<MitsubishiUART>, public MITPListener {
+class MITPSelect : public select::Select, public Parented<MitsubishiUART> {
  public:
   MITPSelect() = default;
   using Parented<MitsubishiUART>::Parented;
-  void publish() override {
+  void publish() {
     // Only publish if force, or a change has occurred and we have a real value
     if (mitp_select_value_.has_value() && mitp_select_value_.value() != current_option()) {
       publish_state(mitp_select_value_.value());
@@ -22,7 +22,7 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART>, publi
   optional<std::string> mitp_select_value_;
 };
 
-class TemperatureSourceSelect : public MITPSelect {
+class TemperatureSourceSelect : public MITPSelect, public MITPListener {
  public:
   void publish() override;
   void setup() override;
@@ -32,12 +32,12 @@ class TemperatureSourceSelect : public MITPSelect {
 
  private:
   ESPPreferenceObject preferences_;
-  esphome::FixedVector<const char*> temp_select_options_ = {
+  esphome::FixedVector<const char *> temp_select_options_ = {
       TEMPERATURE_SOURCE_INTERNAL};  // Used to map strings to indexes for preference storage
 };
 
-class VanePositionSelect : public MITPSelect {
-  void process_packet(const SettingsGetResponsePacket &packet) override;
+class VanePositionSelect : public MITPSelect, public HeatpumpPacketReceiver {
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:
   void control(const std::string &value) override {
@@ -48,8 +48,8 @@ class VanePositionSelect : public MITPSelect {
   }
 };
 
-class HorizontalVanePositionSelect : public MITPSelect {
-  void process_packet(const SettingsGetResponsePacket &packet) override;
+class HorizontalVanePositionSelect : public MITPSelect, public HeatpumpPacketReceiver {
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:
   void control(const std::string &value) override {
