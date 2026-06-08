@@ -60,7 +60,7 @@ Task Heatpump::do_connect() {
 
     if (disc_res) {
       ESP_LOGV(HEATPUMP_TAG, "Received %s", disc_res->to_string().c_str());
-      sys_state_.cache_heatpump_packet(disc_res);
+      sys_state_.cache_heatpump_packet(*disc_res);
     } else {
       ESP_LOGI(HEATPUMP_TAG, "Capability packets not supported.");
     }
@@ -82,7 +82,7 @@ Task Heatpump::do_update_queries() {
   // If we received it, cache it (cache will notify subscribed receivers)
   if (runstate_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", runstate_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(runstate_res);
+    sys_state_.cache_heatpump_packet(runstate_res.value());
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Runstate Packet not recevied!");
   }
@@ -101,8 +101,8 @@ Task Heatpump::do_update_queries() {
   if (settings_res && status_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", settings_res->to_string().c_str());
     ESP_LOGV(HEATPUMP_TAG, "Received %s", status_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(settings_res);
-    sys_state_.cache_heatpump_packet(status_res);
+    sys_state_.cache_heatpump_packet(settings_res.value());
+    sys_state_.cache_heatpump_packet(status_res.value());
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Settings/Status Packet not recevied!");
   }
@@ -114,7 +114,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<CurrentTempGetResponsePacket, Heatpump>(std::move(temp_req), *this);
   if (temp_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", temp_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(temp_res);
+    sys_state_.cache_heatpump_packet(temp_res.value());
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Current Temperature Packet not recevied!");
   }
@@ -126,7 +126,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<ErrorStateGetResponsePacket, Heatpump>(std::move(error_req), *this);
   if (error_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", error_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(error_res);
+    sys_state_.cache_heatpump_packet(error_res.value());
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Error Info Packet not recevied!");
   }
@@ -138,7 +138,7 @@ Task Heatpump::do_update_queries() {
       co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
   if (zone_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(zone_res);
+    sys_state_.cache_heatpump_packet(zone_res.value());
   } else {
     ESP_LOGI(HEATPUMP_TAG, "Zone info packet not received (may not be supported).");
   }

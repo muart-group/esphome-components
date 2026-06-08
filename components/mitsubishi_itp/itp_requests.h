@@ -31,21 +31,6 @@ class ITPPacketReader {
   char *log_name_;
 };
 
-// Subscriber for heatpump change notifications
-class HeatpumpSubscriber {
- public:
-  HeatpumpSubscriber(){};
-  virtual void mode_change(SettingsSetRequestPacket::ModeByte mode){};
-  virtual void fan_change(SettingsSetRequestPacket::FanByte fan){};
-};
-
-// Subscriber for thermostat change notifications
-class ThermostatSubscriber {
- public:
-  virtual void thermostat_temp_change(float degC){};
-  virtual void thermostat_humidity_change(float rh_percent){};
-};
-
 //
 // COROUTINE COMPONENTS
 //

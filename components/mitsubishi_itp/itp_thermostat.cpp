@@ -3,11 +3,8 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-Thermostat::Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump,
-                       ThermostatSubscriber *subscriber)
-    : ITPPacketReader(uart_component, "Thermostat"),
-      connected_heatpump_{*connected_heatpump},
-      subscriber_{*subscriber} {}
+Thermostat::Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump, ITPSystemState *sys_state)
+    : ITPPacketReader(uart_component, "Thermostat"), connected_heatpump_{*connected_heatpump}, sys_state_{*sys_state} {}
 
 void Thermostat::loop() {
   if (in_flight_request_.is_running()) {
@@ -21,6 +18,7 @@ void Thermostat::loop() {
 }
 
 // TODO: Keep filling all these in
+// TODO: This might be a better place to check for cache before sending off to heatpump.
 Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
   switch (static_cast<PacketType>(raw_request_packet.get_packet_type())) {
     case PacketType::CONNECT_REQUEST:

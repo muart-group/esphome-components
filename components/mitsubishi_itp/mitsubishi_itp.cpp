@@ -8,7 +8,7 @@ namespace mitsubishi_itp {
 ////
 
 MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
-    : hp_uart_{*hp_uart_comp}, heatpump_{Heatpump(hp_uart_comp, this)} {
+    : hp_uart_{*hp_uart_comp}, heatpump_{Heatpump(&hp_uart_, &itp_sys_state_)} {
   /**
    * Climate pushes all its data to Home Assistant immediately when the API connects, this causes
    * the default 0 to be sent as temperatures, but since this is a valid value (0 deg C), it
@@ -114,7 +114,7 @@ void MitsubishiUART::dump_config() {
 void MitsubishiUART::set_thermostat_uart(uart::UARTComponent *uart) {
   ESP_LOGCONFIG(TAG, "Thermostat uart was set.");
   ts_uart_ = uart;
-  thermostat_ = make_unique<Thermostat>(ts_uart_, &heatpump_, static_cast<ThermostatSubscriber *>(this));
+  thermostat_ = make_unique<Thermostat>(ts_uart_, &heatpump_, &itp_sys_state_);
   // ts_bridge_ = make_unique<ThermostatBridge>(ts_uart_, static_cast<PacketProcessor *>(this));
 }
 

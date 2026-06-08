@@ -5,7 +5,6 @@
 #include <coroutine>
 #include <variant>
 #include <expected>
-#include "itp_packetprocessor.h"
 #include "itp_requests.h"
 #include "itp_heatpump.h"
 
@@ -18,7 +17,7 @@ static constexpr char THERMOSTAT_TAG[] = "mitsubishi_itp.thermostat";
 
 class Thermostat : public ITPPacketReader {
  public:
-  Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump, ThermostatSubscriber *subscriber);
+  Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump, ITPSystemState *sys_state);
   void loop();
 
  protected:
@@ -31,7 +30,10 @@ class Thermostat : public ITPPacketReader {
 
     if (response_pkt) {
       ESP_LOGV(THERMOSTAT_TAG, "Sending to thermostat %s", response_pkt.value().to_string().c_str());
-      write_raw_packet_(response_pkt.value().raw_packet());
+      write_raw_packet_(response_pkt.value().raw_packet());  // Send to thermostat ASAP
+      sys_state_.cache_heatpump_packet(
+          *response_pkt);  // Send to SystemState to be cached/forwarded (if it's of the appropriate type)
+
     } else {
       ESP_LOGW(THERMOSTAT_TAG, "No response to thermostat packet");
     }
@@ -39,7 +41,7 @@ class Thermostat : public ITPPacketReader {
 
  private:
   Heatpump &connected_heatpump_;  // Heat pump responsible for handling incoming packets
-  ThermostatSubscriber &subscriber_;
+  ITPSystemState sys_state_;
   Task in_flight_request_;  // Packet currently out for processing by MITP/Heatpump
 
   Task handle_thermostat_request(RawPacket &raw_request_packet);

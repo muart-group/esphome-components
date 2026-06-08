@@ -9,8 +9,6 @@
 #include "esphome/components/climate/climate.h"
 #include "mitp_listener.h"
 #include "itp_packets.h"
-#include "itp_packetprocessor.h"
-#include "mitp_bridge.h"
 #include "mitp_mhk.h"
 #include "itp_heatpump.h"
 #include "itp_thermostat.h"
@@ -34,8 +32,8 @@ const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
 
 class MitsubishiUART : public PollingComponent,
                        public climate::Climate,
-                       public HeatpumpSubscriber,
-                       public ThermostatSubscriber {
+                       public HeatpumpPacketReceiver,
+                       public ThermostatPacketReceiver {
  public:
   /**
    * Create a new MitsubishiUART with the specified esphome::uart::UARTComponent.
@@ -111,31 +109,26 @@ class MitsubishiUART : public PollingComponent,
   void route_packet_(const Packet &packet);
   float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
 
-  void process_packet(const Packet &packet);
-  void process_packet(const ConnectRequestPacket &packet);
-  void process_packet(const ConnectResponsePacket &packet);
-  void process_packet(const CapabilitiesRequestPacket &packet);
-  void process_packet(const CapabilitiesResponsePacket &packet);
-  void process_packet(const GetRequestPacket &packet);
-  void process_packet(const SettingsGetResponsePacket &packet);
-  void process_packet(const CurrentTempGetResponsePacket &packet);
-  void process_packet(const StatusGetResponsePacket &packet);
-  void process_packet(const RunStateGetResponsePacket &packet);
-  void process_packet(const ErrorStateGetResponsePacket &packet);
-  void process_packet(const Functions1GetResponsePacket &packet);
-  void process_packet(const Functions2GetResponsePacket &packet);
-  void process_packet(const SettingsSetRequestPacket &packet);
-  void process_packet(const RemoteTemperatureSetRequestPacket &packet);
-  void process_packet(const ThermostatSensorStatusPacket &packet);
-  void process_packet(const ThermostatHelloPacket &packet);
-  void process_packet(const ThermostatStateUploadPacket &packet);
-  void process_packet(const ThermostatAASetRequestPacket &packet);
-  void process_packet(const ZoneGetResponsePacket &packet);
-  void process_packet(const ZoneSetRequestPacket &packet);
-  void process_packet(const SetResponsePacket &packet);
+  void receive_packet(const Packet &packet);
+  // Heatpump
+  void receive_packet(const CapabilitiesResponsePacket &packet) override;
+  void receive_packet(const CurrentTempGetResponsePacket &packet) override;
+  // void receive_packet(const ErrorStateGetResponsePacket &packet) override;
+  // void receive_packet(const Functions1GetResponsePacket &packet) override;
+  // void receive_packet(const Functions2GetResponsePacket &packet) override;
+  void receive_packet(const RunStateGetResponsePacket &packet) override;
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
+  void receive_packet(const StatusGetResponsePacket &packet) override;
+  // void receive_packet(const ZoneGetResponsePacket &packet) override;
 
-  void handle_thermostat_state_download_request(const GetRequestPacket &packet);
-  void handle_thermostat_ab_get_request(const GetRequestPacket &packet);
+  // Thermostat
+  void receive_packet(const RemoteTemperatureSetRequestPacket &packet) override;
+  // void receive_packet(const ThermostatAASetRequestPacket &packet) override;
+  // void receive_packet(const ThermostatABGetResponsePacket &packet) override;
+  // void receive_packet(const ThermostatHelloPacket &packet) override;
+  // void receive_packet(const ThermostatSensorStatusPacket &packet) override;
+  // void receive_packet(const ThermostatStateDownloadResponsePacket &packet) override;
+  // void receive_packet(const ThermostatStateUploadPacket &packet) override;
 
   void do_publish_();
 
@@ -154,14 +147,14 @@ class MitsubishiUART : public PollingComponent,
   }();
 
   // UARTComponent connected to heatpump
-  const uart::UARTComponent &hp_uart_;
+  uart::UARTComponent &hp_uart_;
   // // UART packet wrapper for heatpump
   // HeatpumpBridge hp_bridge_;
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
   // UART packet wrapper for heatpump
-  std::unique_ptr<ThermostatBridge> ts_bridge_ = nullptr;
 
+  ITPSystemState itp_sys_state_ = ITPSystemState();
   Heatpump heatpump_;
   std::unique_ptr<Thermostat> thermostat_ = nullptr;
 
@@ -187,11 +180,11 @@ class MitsubishiUART : public PollingComponent,
 
   // Listener-sensors
   std::vector<MITPListener *> listeners_{};
-  template<typename T> void alert_listeners_packet_(const T &packet) const {
-    for (auto *listener : this->listeners_) {
-      listener->process_packet(packet);
-    }
-  }
+  // template<typename T> void alert_listeners_packet_(const T &packet) const {
+  //   for (auto *listener : this->listeners_) {
+  //     listener->process_packet(packet);
+  //   }
+  // }
   void alert_listeners_internal_temp_(const bool using_internal) const {
     for (auto *listener : this->listeners_) {
       listener->using_internal_temperature(using_internal);
