@@ -21,19 +21,19 @@ class MITPBinarySensor : public MITPListener, public binary_sensor::BinarySensor
 };
 
 class DefrostSensor : public MITPBinarySensor {
-  void process_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_defrost(); }
+  void receive_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_defrost(); }
 };
 class FilterStatusSensor : public MITPBinarySensor {
-  void process_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.service_filter(); }
+  void receive_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.service_filter(); }
 };
 class PreheatSensor : public MITPBinarySensor {
-  void process_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_preheat(); }
+  void receive_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_preheat(); }
 };
 class StandbySensor : public MITPBinarySensor {
-  void process_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_standby(); }
+  void receive_packet(const RunStateGetResponsePacket &packet) { mitp_binary_sensor_state_ = packet.in_standby(); }
 };
 class ISeeStatusSensor : public MITPBinarySensor {
-  void process_packet(const SettingsGetResponsePacket &packet) {
+  void receive_packet(const SettingsGetResponsePacket &packet) {
     mitp_binary_sensor_state_ = packet.is_i_see_enabled();
   }
 };

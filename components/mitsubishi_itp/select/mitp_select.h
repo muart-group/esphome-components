@@ -6,7 +6,7 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-class MITPSelect : public select::Select, public Parented<MitsubishiUART> {
+class MITPSelect : public select::Select, public Parented<MitsubishiUART>, public MITPListener {
  public:
   MITPSelect() = default;
   using Parented<MitsubishiUART>::Parented;
@@ -22,7 +22,7 @@ class MITPSelect : public select::Select, public Parented<MitsubishiUART> {
   optional<std::string> mitp_select_value_;
 };
 
-class TemperatureSourceSelect : public MITPSelect, public MITPListener {
+class TemperatureSourceSelect : public MITPSelect {
  public:
   void publish() override;
   void setup() override;
@@ -36,7 +36,7 @@ class TemperatureSourceSelect : public MITPSelect, public MITPListener {
       TEMPERATURE_SOURCE_INTERNAL};  // Used to map strings to indexes for preference storage
 };
 
-class VanePositionSelect : public MITPSelect, public HeatpumpPacketReceiver {
+class VanePositionSelect : public MITPSelect {
   void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:
@@ -48,7 +48,7 @@ class VanePositionSelect : public MITPSelect, public HeatpumpPacketReceiver {
   }
 };
 
-class HorizontalVanePositionSelect : public MITPSelect, public HeatpumpPacketReceiver {
+class HorizontalVanePositionSelect : public MITPSelect {
   void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:

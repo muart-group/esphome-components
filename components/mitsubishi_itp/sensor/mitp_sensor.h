@@ -22,34 +22,34 @@ class MITPSensor : public MITPListener, public sensor::Sensor {
   float mitp_sensor_state_ = NAN;
 };
 
-class CompressorFrequencySensor : public MITPSensor, public HeatpumpPacketReceiver {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
+class CompressorFrequencySensor : public MITPSensor {
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
 };
 
-class InputWattsSensor : public MITPSensor, public HeatpumpPacketReceiver {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
+class InputWattsSensor : public MITPSensor {
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
 };
 
-class LifetimeKwhSensor : public MITPSensor, public HeatpumpPacketReceiver {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
+class LifetimeKwhSensor : public MITPSensor {
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
 };
 
-class OutdoorTemperatureSensor : public MITPSensor, public HeatpumpPacketReceiver {
-  void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
+class OutdoorTemperatureSensor : public MITPSensor {
+  void receive_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
 };
 
-class RuntimeSensor : public MITPSensor, public HeatpumpPacketReceiver {
-  void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
+class RuntimeSensor : public MITPSensor {
+  void receive_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
 };
 
-class ThermostatHumiditySensor : public MITPSensor, public ThermostatPacketReceiver {
-  void process_packet(const ThermostatSensorStatusPacket &packet) {
+class ThermostatHumiditySensor : public MITPSensor {
+  void receive_packet(const ThermostatSensorStatusPacket &packet) {
     mitp_sensor_state_ = packet.get_indoor_humidity_percent();
   }
 };
 
-class ThermostatTemperatureSensor : public MITPSensor, public ThermostatPacketReceiver {
-  void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
+class ThermostatTemperatureSensor : public MITPSensor {
+  void receive_packet(const RemoteTemperatureSetRequestPacket &packet) {
     if (!packet.get_use_internal_temperature()) {
       mitp_sensor_state_ = packet.get_remote_temperature();
       force_next_publish_ = true;  // Set true to force publish even if value the same

@@ -6,10 +6,7 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-class MITPZoneSwitch : public switch_::Switch,
-                       public Parented<MitsubishiUART>,
-                       public MITPListener,
-                       public HeatpumpPacketReceiver {
+class MITPZoneSwitch : public switch_::Switch, public Parented<MitsubishiUART>, public MITPListener {
  public:
   MITPZoneSwitch() = default;
   using Parented<MitsubishiUART>::Parented;

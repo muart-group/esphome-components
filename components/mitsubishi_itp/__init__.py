@@ -26,7 +26,7 @@ def sensors_to_config_schema(sensors):
     )
 
 
-async def sensors_to_code(config, sensors, registration_function, register_function_name):
+async def sensors_to_code(config, sensors, registration_function):
     mitp_component = await cg.get_variable(config[CONF_MITSUBISHI_ITP_ID])
 
     # Sensors
@@ -37,5 +37,4 @@ async def sensors_to_code(config, sensors, registration_function, register_funct
 
             await registration_function(sensor_component, sensor_conf)
 
-            cg.add(getattr(mitp_component, "register_mitp_listener")(sensor_component))
-            cg.add(getattr(mitp_component, register_function_name)(sensor_component))
+            cg.add(getattr(mitp_component, "register_listener")(sensor_component))

@@ -49,18 +49,15 @@ class ITPSystemState {
  public:
   bool is_connected() { return connected_.value.value(); }
 
-  void register_heatpump_receiver(HeatpumpPacketReceiver *receiver) { this->heatpump_receivers_.push_back(receiver); }
-  void register_thermostat_receiver(ThermostatPacketReceiver *receiver) {
-    this->thermostat_receivers_.push_back(receiver);
-  }
+  void register_receiver(ITPPacketReceiver *receiver) { this->receivers_.push_back(receiver); }
 
   // Caches the packet and sends to receivers *IF* it's one of the defined cached packet types above (otherwise ignores)
   template<class PType> void cache_heatpump_packet(PType incoming_packet) {
     if constexpr (is_in_tuple_v<TimestampedValue<PType>, HeatpumpPacketCache>) {
-      ESP_LOGV("mitsubishi_itp.system", "Caching heatpump packet.");
       auto &latest_packet = std::get<TimestampedValue<PType>>(heatpump_packet_cache_);
-      latest_packet.set(incoming_packet);
-      send_to_heatpump_receivers_(incoming_packet);
+      if (latest_packet.set(incoming_packet)) {
+        send_to_receivers_(incoming_packet);
+      }
     }
   }
 
@@ -73,9 +70,13 @@ class ITPSystemState {
   }
 
   // Caches the packet, returning true if it was modified, false if it was the same
-  template<class PType> bool cache_thermostat_packet(PType incoming_packet) {
-    auto &latest_packet = std::get<TimestampedValue<PType>>(thermostat_packet_cache_);
-    return latest_packet.set(incoming_packet);
+  template<class PType> void cache_thermostat_packet(PType incoming_packet) {
+    if constexpr (is_in_tuple_v<TimestampedValue<PType>, ThermostatPacketCache>) {
+      auto &latest_packet = std::get<TimestampedValue<PType>>(thermostat_packet_cache_);
+      if (latest_packet.set(incoming_packet)) {
+        send_to_receivers_(incoming_packet);
+      }
+    }
   }
 
   // Checks received packets and returns the latest packet of the appripriate type if it's fresh enough
@@ -88,17 +89,11 @@ class ITPSystemState {
 
  private:
   TimestampedValue<bool> connected_ = TimestampedValue<bool>{false};
-  std::vector<HeatpumpPacketReceiver *> heatpump_receivers_{};
-  std::vector<ThermostatPacketReceiver *> thermostat_receivers_{};
+  std::vector<ITPPacketReceiver *> receivers_{};
 
-  template<typename T> void send_to_heatpump_receivers_(const T &packet) const {
-    for (auto *receiver : this->heatpump_receivers_) {
-      receiver->receive_packet(packet);
-    }
-  }
-
-  template<typename T> void send_to_thermostat_receivers_(const T &packet) const {
-    for (auto *receiver : this->thermostat_receivers_) {
+  template<typename T> void send_to_receivers_(const T &packet) const {
+    ESP_LOGD("mitsubishi_itp.system", "Sending %i to %i receivers", packet.get_packet_type(), this->receivers_.size());
+    for (auto *receiver : this->receivers_) {
       receiver->receive_packet(packet);
     }
   }

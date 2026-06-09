@@ -30,10 +30,7 @@ inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
 const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
 
-class MitsubishiUART : public PollingComponent,
-                       public climate::Climate,
-                       public HeatpumpPacketReceiver,
-                       public ThermostatPacketReceiver {
+class MitsubishiUART : public PollingComponent, public climate::Climate, public ITPPacketReceiver {
  public:
   /**
    * Create a new MitsubishiUART with the specified esphome::uart::UARTComponent.
@@ -67,13 +64,10 @@ class MitsubishiUART : public PollingComponent,
   // Set thermostat UART component
   void set_thermostat_uart(uart::UARTComponent *uart);
 
-  // Listener-sensors
-  void register_mitp_listener(MITPListener *listener) { this->listeners_.push_back(listener); }
-  void register_heatpump_receiver(HeatpumpPacketReceiver *receiver) {
-    itp_sys_state_.register_heatpump_receiver(receiver);
-  }
-  void register_thermostat_receiver(ThermostatPacketReceiver *receiver) {
-    itp_sys_state_.register_thermostat_receiver(receiver);
+  // Register listener sensors with MITP for logic events, and ITPSystemState for ITP packets
+  void register_listener(MITPListener *listener) {
+    this->listeners_.push_back(listener);
+    this->itp_sys_state_.register_receiver(listener);
   }
 
   // Temperature Source config

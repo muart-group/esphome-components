@@ -18,10 +18,8 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
   target_temperature = NAN;
   current_temperature = NAN;
 
-  // Register to receive heatpump packets (for normal heat pump operation)
-  itp_sys_state_.register_heatpump_receiver(this);
-  // Register to receive thermostat packets (for tracking thermostat-reported temperatures)
-  itp_sys_state_.register_thermostat_receiver(this);
+  // Register to receive heatpump and thermostat packets
+  itp_sys_state_.register_receiver(this);
 }
 
 // This value should be changed if the structure of the preferences object changes

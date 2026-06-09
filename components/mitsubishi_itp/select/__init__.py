@@ -65,7 +65,6 @@ SELECTS = {
             }
         ),
         [mitsubishi_itp_ns.TEMPERATURE_SOURCE_INTERNAL],
-        "mitp",
     ),
     CONF_VANE_POSITION: (
         select.select_schema(
@@ -74,7 +73,6 @@ SELECTS = {
             icon="mdi:arrow-expand-vertical",
         ),
         VANE_POSITIONS,
-        "heatpump",
     ),
     CONF_HORIZONTAL_VANE_POSITION: (
         select.select_schema(
@@ -83,7 +81,6 @@ SELECTS = {
             icon="mdi:arrow-expand-horizontal",
         ),
         HORIZONTAL_VANE_POSITIONS,
-        "heatpump",
     ),
 }
 
@@ -96,7 +93,6 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(select_designator): select_schema
         for select_designator, (
             select_schema,
-            _,
             _
         ) in SELECTS.items()
     }
@@ -110,15 +106,11 @@ async def to_code(config):
     # Register selects
     for select_designator, (
         _,
-        select_options,
-        listener_type
+        select_options
     ) in SELECTS.items():
         if select_conf := config.get(select_designator):
             select_component = cg.new_Pvariable(select_conf[CONF_ID])
-            if (listener_type == "mitp"):
-                cg.add(getattr(mitp_component, "register_mitp_listener")(select_component))
-            if (listener_type == "heatpump"):
-                cg.add(getattr(mitp_component, "register_heatpump_receiver")(select_component))
+            cg.add(getattr(mitp_component, "register_listener")(select_component))
 
             if select_designator == CONF_TEMPERATURE_SOURCE:
                 # Check to see if the associated climate has a thermostat defined

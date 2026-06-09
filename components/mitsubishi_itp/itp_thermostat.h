@@ -24,6 +24,7 @@ class Thermostat : public ITPPacketReader {
   template<class RequestType, class ResponseType> Task send_to_heatpump(RawPacket &raw_request_packet) {
     std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(RequestType(std::move(raw_request_packet)));
     ESP_LOGV(THERMOSTAT_TAG, "Receiving from thermostat %s", req->request.to_string().c_str());
+    sys_state_.cache_thermostat_packet(static_cast<RequestType *>(&req->request));
 
     optional<ResponseType> response_pkt =
         co_await RequestAwaiter<ResponseType, Heatpump>(std::move(req), connected_heatpump_);

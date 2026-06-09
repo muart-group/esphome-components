@@ -3,7 +3,7 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-void ErrorCodeSensor::process_packet(const ErrorStateGetResponsePacket &packet) {
+void ErrorCodeSensor::receive_packet(const ErrorStateGetResponsePacket &packet) {
   // TODO: Include friendly text from JSON, somehow.
   if (!packet.error_present()) {
     mitp_text_sensor_state_ = std::string("No Error Reported");
@@ -19,7 +19,7 @@ void ErrorCodeSensor::process_packet(const ErrorStateGetResponsePacket &packet) 
   }
 }
 
-void ThermostatBatterySensor::process_packet(const ThermostatSensorStatusPacket &packet) {
+void ThermostatBatterySensor::receive_packet(const ThermostatSensorStatusPacket &packet) {
   if (packet.get_flags() & 0x08) {
     mitp_text_sensor_state_ = THERMOSTAT_BATTERY_STATE_NAMES[packet.get_thermostat_battery_state()];
   }

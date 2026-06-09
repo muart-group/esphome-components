@@ -121,5 +121,5 @@ CONFIG_SCHEMA = sensors_to_config_schema(SENSORS)
 
 @coroutine
 async def to_code(config):
-    await sensors_to_code(config, HEATPUMP_SENSORS, sensor.register_sensor, "register_heatpump_receiver")
-    await sensors_to_code(config, THERMOSTAT_SENSORS, sensor.register_sensor, "register_thermostat_receiver")
+    await sensors_to_code(config, HEATPUMP_SENSORS, sensor.register_sensor)
+    await sensors_to_code(config, THERMOSTAT_SENSORS, sensor.register_sensor)

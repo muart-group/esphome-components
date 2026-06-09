@@ -42,8 +42,7 @@ async def to_code(config):
             await switch.register_switch(zone_component, zone_conf)
 
             # TODO: Unclear if MITPListener just for publish() is really needed
-            cg.add(getattr(mitp_component, "register_mitp_listener")(zone_component))
-            cg.add(getattr(mitp_component, "register_heatpump_listener")(zone_component))
+            cg.add(getattr(mitp_component, "register_listener")(zone_component))
             zones_registered = True
 
     if zones_registered:
