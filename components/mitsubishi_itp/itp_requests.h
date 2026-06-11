@@ -109,7 +109,11 @@ template<class PType, class RequestHandler> struct RequestAwaiter {
 
   optional<PType> await_resume() {
     if (ctx_ptr->raw_response) {
-      return Packet::try_from_raw<PType>(std::move(ctx_ptr->raw_response.value()));
+      optional<PType> response_pkt = Packet::try_from_raw<PType>(std::move(ctx_ptr->raw_response.value()));
+      if (response_pkt) {
+        response_pkt->set_sequence(ctx_ptr->request.get_sequence());
+      }
+      return response_pkt;
       // return PType(std::move(ctx_ptr->raw_response.value()));  // Last use of ctx_ptr before Awaiter is destroyed.
     }
     return nullopt;

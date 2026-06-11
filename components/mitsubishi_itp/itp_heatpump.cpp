@@ -121,6 +121,7 @@ Task Heatpump::do_update_queries() {
   // TODO: Check cache for the rest of these
 
   // Settings & Status processed together for mode logic to work
+
   std::unique_ptr<RequestContext> settings_req =
       std::make_unique<RequestContext>(GetRequestPacket::get_settings_instance());
   optional<SettingsGetResponsePacket> settings_res =
