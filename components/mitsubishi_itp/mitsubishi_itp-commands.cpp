@@ -5,36 +5,42 @@ namespace mitsubishi_itp {
 
 // Called to instruct a change of the climate controls
 void MitsubishiUART::control(const climate::ClimateCall &call) {
-  SettingsSetRequestPacket set_request_packet = SettingsSetRequestPacket();
+  if (command_task_.is_running()) {
+    return;
+  }
+  // TODO: use a vector? of tasks so we don't have to immediately bail on this
+  // Figure out how to clean vector
+
+  ClimateCommand cmd = ClimateCommand(&heatpump_);
 
   // Apply fan settings
   // Prioritize a custom fan mode if it's set.
   if (call.has_custom_fan_mode()) {
     if (call.get_custom_fan_mode() == FAN_MODE_VERYHIGH) {
       set_custom_fan_mode_(FAN_MODE_VERYHIGH);
-      set_request_packet.set_fan(SettingsSetRequestPacket::FAN_4);
+      cmd.fanSpeed(SettingsSetRequestPacket::FAN_4);
     }
   } else if (call.get_fan_mode().has_value()) {
     switch (call.get_fan_mode().value()) {
       case climate::CLIMATE_FAN_QUIET:
         set_fan_mode_(climate::CLIMATE_FAN_QUIET);
-        set_request_packet.set_fan(SettingsSetRequestPacket::FAN_QUIET);
+        cmd.fanSpeed(SettingsSetRequestPacket::FAN_QUIET);
         break;
       case climate::CLIMATE_FAN_LOW:
         set_fan_mode_(climate::CLIMATE_FAN_LOW);
-        set_request_packet.set_fan(SettingsSetRequestPacket::FAN_1);
+        cmd.fanSpeed(SettingsSetRequestPacket::FAN_1);
         break;
       case climate::CLIMATE_FAN_MEDIUM:
         set_fan_mode_(climate::CLIMATE_FAN_MEDIUM);
-        set_request_packet.set_fan(SettingsSetRequestPacket::FAN_2);
+        cmd.fanSpeed(SettingsSetRequestPacket::FAN_2);
         break;
       case climate::CLIMATE_FAN_HIGH:
         set_fan_mode_(climate::CLIMATE_FAN_HIGH);
-        set_request_packet.set_fan(SettingsSetRequestPacket::FAN_3);
+        cmd.fanSpeed(SettingsSetRequestPacket::FAN_3);
         break;
       case climate::CLIMATE_FAN_AUTO:
         set_fan_mode_(climate::CLIMATE_FAN_AUTO);
-        set_request_packet.set_fan(SettingsSetRequestPacket::FAN_AUTO);
+        cmd.fanSpeed(SettingsSetRequestPacket::FAN_AUTO);
         break;
       default:
         ESP_LOGW(TAG, "Unhandled fan mode %i!", call.get_fan_mode().value());
@@ -49,23 +55,23 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
     switch (call.get_mode().value()) {
       case climate::CLIMATE_MODE_HEAT_COOL:
-        set_request_packet.set_power(true).set_mode(SettingsSetRequestPacket::MODE_BYTE_AUTO);
+        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_AUTO);
         break;
       case climate::CLIMATE_MODE_COOL:
-        set_request_packet.set_power(true).set_mode(SettingsSetRequestPacket::MODE_BYTE_COOL);
+        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_COOL);
         break;
       case climate::CLIMATE_MODE_HEAT:
-        set_request_packet.set_power(true).set_mode(SettingsSetRequestPacket::MODE_BYTE_HEAT);
+        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_HEAT);
         break;
       case climate::CLIMATE_MODE_FAN_ONLY:
-        set_request_packet.set_power(true).set_mode(SettingsSetRequestPacket::MODE_BYTE_FAN);
+        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_FAN);
         break;
       case climate::CLIMATE_MODE_DRY:
-        set_request_packet.set_power(true).set_mode(SettingsSetRequestPacket::MODE_BYTE_DRY);
+        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_DRY);
         break;
       case climate::CLIMATE_MODE_OFF:
       default:
-        set_request_packet.set_power(false);
+        cmd.power(false);
         break;
     }
   }
@@ -74,14 +80,14 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   if (call.get_target_temperature().has_value()) {
     target_temperature = call.get_target_temperature().value();
-    set_request_packet.set_target_temperature(call.get_target_temperature().value());
+    cmd.target_temperature_degC(target_temperature);
   } else if (call.get_mode().has_value()) {
     // If we didn't get a new target temp, but we did get a mode, use the last known target temp:
     auto previous_target = mode_recall_setpoints_[call.get_mode().value()];
     if (previous_target > 0.0f) {
       ESP_LOGD(TAG, "Loading previous target temp %f", previous_target);
       target_temperature = previous_target;
-      set_request_packet.set_target_temperature(previous_target);
+      cmd.target_temperature_degC(target_temperature);
     }
   }
 
@@ -117,11 +123,79 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   // We're assuming that every climate call *does* make some change worth sending to the heat pump
   // Queue the packet to be sent first (so any subsequent update packets come *after* our changes)
-  // hp_bridge_.send_packet(set_request_packet);
+  command_task_ = cmd.send();
 
   // Publish state and any sensor changes (shouldn't be any a result of this function, but
   // since they lazy-publish, no harm in trying)
   do_publish_();
+}
+
+bool MitsubishiUART::select_vane_position(const std::string &state) {
+  if (command_task_.is_running()) {
+    return false;
+  }
+  ClimateCommand cmd = ClimateCommand(&heatpump_);
+
+  // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
+  // infrequently, this is probably a better solution than over-optimizing via maps or something
+
+  if (state == "Auto") {
+    cmd.vane(SettingsSetRequestPacket::VANE_AUTO);
+  } else if (state == "1") {
+    cmd.vane(SettingsSetRequestPacket::VANE_1);
+  } else if (state == "2") {
+    cmd.vane(SettingsSetRequestPacket::VANE_2);
+  } else if (state == "3") {
+    cmd.vane(SettingsSetRequestPacket::VANE_3);
+  } else if (state == "4") {
+    cmd.vane(SettingsSetRequestPacket::VANE_4);
+  } else if (state == "5") {
+    cmd.vane(SettingsSetRequestPacket::VANE_5);
+  } else if (state == "Swing") {
+    cmd.vane(SettingsSetRequestPacket::VANE_SWING);
+  } else {
+    ESP_LOGW(TAG, "Unknown vane position %s", state.c_str());
+    return false;
+  }
+
+  command_task_ = cmd.send();
+
+  return true;
+}
+
+bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
+  if (command_task_.is_running()) {
+    return false;
+  }
+  ClimateCommand cmd = ClimateCommand(&heatpump_);
+
+  // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
+  // infrequently, this is probably a better solution than over-optimizing via maps or something
+
+  if (state == "Auto") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_AUTO);
+  } else if (state == "<<") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_LEFT_FULL);
+  } else if (state == "<") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_LEFT);
+  } else if (state == "|") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_CENTER);
+  } else if (state == ">") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_RIGHT);
+  } else if (state == ">>") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_RIGHT_FULL);
+  } else if (state == "<>") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_SPLIT);
+  } else if (state == "Swing") {
+    cmd.horizontal_vane(SettingsSetRequestPacket::HV_SWING);
+  } else {
+    ESP_LOGW(TAG, "Unknown horizontal vane position %s", state.c_str());
+    return false;
+  }
+
+  command_task_ = cmd.send();
+
+  return true;
 }
 
 }  // namespace mitsubishi_itp

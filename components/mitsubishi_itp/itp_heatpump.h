@@ -47,8 +47,52 @@ class Heatpump : public ITPPacketReader {
 
   Task do_update_queries();  // Creates and enqueues Awaiters, and then processes the results
   Task do_connect();
+};
 
-  // Packet Handling
+class ClimateCommand {
+ public:
+  ClimateCommand(Heatpump *target) : target_(*target){};
+  Task send();
+
+  ClimateCommand &fanSpeed(SettingsSetRequestPacket::FanByte fan_speed) {
+    fan_speed_ = fan_speed;
+    return *this;
+  }
+
+  ClimateCommand &power(bool power_on) {
+    power_ = power_on;
+    return *this;
+  }
+
+  ClimateCommand &mode(SettingsSetRequestPacket::ModeByte mode) {
+    mode_ = mode;
+    return *this;
+  }
+
+  ClimateCommand &target_temperature_degC(float target_temperature_degC) {
+    target_temperature_degC_ = target_temperature_degC;
+    return *this;
+  }
+
+  ClimateCommand &vane(SettingsSetRequestPacket::VaneByte vane) {
+    vane_ = vane;
+    return *this;
+  }
+
+  ClimateCommand &horizontal_vane(SettingsSetRequestPacket::HorizontalVaneByte horizontal_vane) {
+    horizontal_vane_ = horizontal_vane;
+    return *this;
+  }
+
+ private:
+  Heatpump &target_;
+
+  optional<SettingsSetRequestPacket::FanByte> fan_speed_ = nullopt;
+  optional<bool> power_ = nullopt;
+  optional<SettingsSetRequestPacket::ModeByte> mode_ = nullopt;
+  optional<float> target_temperature_degC_ = nullopt;
+  optional<SettingsSetRequestPacket::VaneByte> vane_ = nullopt;
+  optional<SettingsSetRequestPacket::HorizontalVaneByte> horizontal_vane_ = nullopt;
 };
 
 }  // namespace mitsubishi_itp

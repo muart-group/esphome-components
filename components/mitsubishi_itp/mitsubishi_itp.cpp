@@ -226,66 +226,6 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
   return true;
 }
 
-bool MitsubishiUART::select_vane_position(const std::string &state) {
-  SettingsSetRequestPacket::VaneByte position_byte = SettingsSetRequestPacket::VANE_AUTO;
-
-  // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
-  // infrequently, this is probably a better solution than over-optimizing via maps or something
-
-  if (state == "Auto") {
-    position_byte = SettingsSetRequestPacket::VANE_AUTO;
-  } else if (state == "1") {
-    position_byte = SettingsSetRequestPacket::VANE_1;
-  } else if (state == "2") {
-    position_byte = SettingsSetRequestPacket::VANE_2;
-  } else if (state == "3") {
-    position_byte = SettingsSetRequestPacket::VANE_3;
-  } else if (state == "4") {
-    position_byte = SettingsSetRequestPacket::VANE_4;
-  } else if (state == "5") {
-    position_byte = SettingsSetRequestPacket::VANE_5;
-  } else if (state == "Swing") {
-    position_byte = SettingsSetRequestPacket::VANE_SWING;
-  } else {
-    ESP_LOGW(TAG, "Unknown vane position %s", state.c_str());
-    return false;
-  }
-
-  // hp_bridge_.send_packet(SettingsSetRequestPacket().set_vane(position_byte));
-  return true;
-}
-
-bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
-  SettingsSetRequestPacket::HorizontalVaneByte position_byte = SettingsSetRequestPacket::HV_CENTER;
-
-  // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
-  // infrequently, this is probably a better solution than over-optimizing via maps or something
-
-  if (state == "Auto") {
-    position_byte = SettingsSetRequestPacket::HV_AUTO;
-  } else if (state == "<<") {
-    position_byte = SettingsSetRequestPacket::HV_LEFT_FULL;
-  } else if (state == "<") {
-    position_byte = SettingsSetRequestPacket::HV_LEFT;
-  } else if (state == "|") {
-    position_byte = SettingsSetRequestPacket::HV_CENTER;
-  } else if (state == ">") {
-    position_byte = SettingsSetRequestPacket::HV_RIGHT;
-  } else if (state == ">>") {
-    position_byte = SettingsSetRequestPacket::HV_RIGHT_FULL;
-  } else if (state == "<>") {
-    position_byte = SettingsSetRequestPacket::HV_SPLIT;
-  } else if (state == "Swing") {
-    position_byte = SettingsSetRequestPacket::HV_SWING;
-  } else {
-    ESP_LOGW(TAG, "Unknown horizontal vane position %s", state.c_str());
-    return false;
-  }
-
-  // hp_bridge_.send_packet(SettingsSetRequestPacket().set_horizontal_vane(position_byte));
-  return true;
-}
-
 // Called by temperature_source sensors, and packetprocessing to report new temperature values. Only
 // sends temperature information on to heat pump if it matches the current selected_temperature_source
 void MitsubishiUART::temperature_source_report(const std::string &temperature_source, const float &v) {

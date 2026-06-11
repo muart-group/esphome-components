@@ -3,6 +3,34 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
+Task ClimateCommand::send() {
+  SettingsSetRequestPacket set_request_packet = SettingsSetRequestPacket();
+  if (fan_speed_) {
+    set_request_packet.set_fan(*fan_speed_);
+  }
+  if (power_) {
+    set_request_packet.set_power(*power_);
+  }
+  if (mode_) {
+    set_request_packet.set_mode(*mode_);
+  }
+  if (target_temperature_degC_) {
+    set_request_packet.set_target_temperature(*target_temperature_degC_);
+  }
+  if (vane_) {
+    set_request_packet.set_vane(*vane_);
+  }
+  if (horizontal_vane_) {
+    set_request_packet.set_horizontal_vane(*horizontal_vane_);
+  }
+
+  std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(set_request_packet);
+
+  optional<SetResponsePacket> response_pkt =
+      co_await RequestAwaiter<SetResponsePacket, Heatpump>(std::move(req), target_);
+  // TODO: flag a failed response here?
+}
+
 Heatpump::Heatpump(uart::UARTComponent *uart_component, ITPSystemState *sys_state)
     : ITPPacketReader(uart_component, "Heatpump"), uart_comp_{*uart_component}, sys_state_{*sys_state} {}
 

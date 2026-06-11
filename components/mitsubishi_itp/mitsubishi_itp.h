@@ -158,6 +158,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   Heatpump heatpump_;
   std::unique_ptr<Thermostat> thermostat_ = nullptr;
 
+  Task command_task_;
+
   // Are we connected to the heatpump?
   bool hp_connected_ = false;
   // Should we call publish on the next update?
