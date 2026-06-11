@@ -99,8 +99,6 @@ Task Heatpump::do_connect() {
 }
 
 Task Heatpump::do_update_queries() {
-  ESP_LOGD(HEATPUMP_TAG, "Doing update!");
-
   // Check cache first
   optional<RunStateGetResponsePacket> runstate_res = sys_state_.check_heatpump_cache<RunStateGetResponsePacket>();
   // If not in cache, try requesting from heatpump
@@ -118,19 +116,20 @@ Task Heatpump::do_update_queries() {
     ESP_LOGW(HEATPUMP_TAG, "Runstate Packet not recevied!");
   }
 
-  // TODO: Check cache for the rest of these
-
   // Settings & Status processed together for mode logic to work
+  optional<SettingsGetResponsePacket> settings_res = sys_state_.check_heatpump_cache<SettingsGetResponsePacket>();
+  if (!settings_res) {
+    std::unique_ptr<RequestContext> settings_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_settings_instance());
+    settings_res = co_await RequestAwaiter<SettingsGetResponsePacket, Heatpump>(std::move(settings_req), *this);
+  }
 
-  std::unique_ptr<RequestContext> settings_req =
-      std::make_unique<RequestContext>(GetRequestPacket::get_settings_instance());
-  optional<SettingsGetResponsePacket> settings_res =
-      co_await RequestAwaiter<SettingsGetResponsePacket, Heatpump>(std::move(settings_req), *this);
-
-  std::unique_ptr<RequestContext> status_req =
-      std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
-  optional<StatusGetResponsePacket> status_res =
-      co_await RequestAwaiter<StatusGetResponsePacket, Heatpump>(std::move(status_req), *this);
+  optional<StatusGetResponsePacket> status_res = sys_state_.check_heatpump_cache<StatusGetResponsePacket>();
+  if (!status_res) {
+    std::unique_ptr<RequestContext> status_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_status_instance());
+    status_res = co_await RequestAwaiter<StatusGetResponsePacket, Heatpump>(std::move(status_req), *this);
+  }
 
   if (settings_res && status_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", settings_res->to_string().c_str());
@@ -142,10 +141,13 @@ Task Heatpump::do_update_queries() {
   }
 
   // Current temp
-  std::unique_ptr<RequestContext> temp_req =
-      std::make_unique<RequestContext>(GetRequestPacket::get_current_temp_instance());
-  optional<CurrentTempGetResponsePacket> temp_res =
-      co_await RequestAwaiter<CurrentTempGetResponsePacket, Heatpump>(std::move(temp_req), *this);
+  optional<CurrentTempGetResponsePacket> temp_res = sys_state_.check_heatpump_cache<CurrentTempGetResponsePacket>();
+  if (!temp_res) {
+    std::unique_ptr<RequestContext> temp_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_current_temp_instance());
+    temp_res = co_await RequestAwaiter<CurrentTempGetResponsePacket, Heatpump>(std::move(temp_req), *this);
+  }
+
   if (temp_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", temp_res->to_string().c_str());
     sys_state_.cache_heatpump_packet(temp_res.value());
@@ -154,10 +156,13 @@ Task Heatpump::do_update_queries() {
   }
 
   // Error Info
-  std::unique_ptr<RequestContext> error_req =
-      std::make_unique<RequestContext>(GetRequestPacket::get_error_info_instance());
-  optional<ErrorStateGetResponsePacket> error_res =
-      co_await RequestAwaiter<ErrorStateGetResponsePacket, Heatpump>(std::move(error_req), *this);
+  optional<ErrorStateGetResponsePacket> error_res = sys_state_.check_heatpump_cache<ErrorStateGetResponsePacket>();
+  if (!error_res) {
+    std::unique_ptr<RequestContext> error_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_error_info_instance());
+    error_res = co_await RequestAwaiter<ErrorStateGetResponsePacket, Heatpump>(std::move(error_req), *this);
+  }
+
   if (error_res) {
     ESP_LOGV(HEATPUMP_TAG, "Received %s", error_res->to_string().c_str());
     sys_state_.cache_heatpump_packet(error_res.value());
@@ -167,9 +172,12 @@ Task Heatpump::do_update_queries() {
 
   // Zones (may not work on all units)
   if (zones_enabled_) {
-    std::unique_ptr<RequestContext> zone_req = std::make_unique<RequestContext>(GetRequestPacket::get_zone_instance());
-    optional<ZoneGetResponsePacket> zone_res =
-        co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
+    optional<ZoneGetResponsePacket> zone_res = sys_state_.check_heatpump_cache<ZoneGetResponsePacket>();
+    if (!zone_res) {
+      std::unique_ptr<RequestContext> zone_req =
+          std::make_unique<RequestContext>(GetRequestPacket::get_zone_instance());
+      zone_res = co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
+    }
     if (zone_res) {
       ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
       sys_state_.cache_heatpump_packet(zone_res.value());
