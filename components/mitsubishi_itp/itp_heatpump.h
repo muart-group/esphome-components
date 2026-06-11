@@ -79,8 +79,16 @@ class Heatpump : public ITPPacketReader {
   // Returns connected state of heatpump
   bool is_connected() { return connected_; }
 
+  bool enable_zones(bool enable = true) { zones_enabled_ = enable; };
+
   // Checks to see if there is room in command_tasks_ then executes comand and stores the Task
   bool send_command(ClimateCommand command);
+
+  bool reset_filter();
+
+  bool set_remote_temperature(float degC);
+  bool use_internal_temperature(bool use_internal = true);
+  bool set_zone_active(uint8_t zone, bool active = true);
 
  private:
   uart::UARTComponent &uart_comp_;  // UART for Heatpump
@@ -94,6 +102,8 @@ class Heatpump : public ITPPacketReader {
 
   bool connected_ = false;
 
+  bool zones_enabled_ = false;
+
   void write_raw_packet_(const RawPacket &packet_to_send) const;  // Write out packet to heatpump UART
 
   Task do_update_queries();  // Creates and enqueues Awaiters, and then processes the results
@@ -103,6 +113,13 @@ class Heatpump : public ITPPacketReader {
   std::vector<Task> command_tasks_;
   // Returns true if command_tasks_ is smaller than MAX_INFLIGHT_COMMANDS
   bool check_command_queue_();
+
+  // Creates the appropriate coroutine structure for a packet and enqueues it
+  template<class ResponsePacket> Task enqueue_packet(Packet packet) {
+    std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(packet);
+
+    optional<ResponsePacket> response_pkt = co_await RequestAwaiter<ResponsePacket, Heatpump>(std::move(req), *this);
+  };
 };
 
 }  // namespace mitsubishi_itp

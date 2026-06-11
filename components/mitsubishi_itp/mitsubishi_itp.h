@@ -90,7 +90,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Zone control
   bool set_zone_active(uint8_t zone, bool active);
-  void set_zones_enabled(bool enabled) { zones_enabled_ = enabled; }
+  void set_zones_enabled(bool enabled) { heatpump_.enable_zones(enabled); }
 
   // Turns on or off Kumo emulation mode
   void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
@@ -206,9 +206,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
   bool mhk_f_correction_ = false;
-
-  // set to true when at least one zone switch is registered
-  bool zones_enabled_ = false;
 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;

@@ -101,13 +101,13 @@ Task Heatpump::do_connect() {
 Task Heatpump::do_update_queries() {
   ESP_LOGD(HEATPUMP_TAG, "Doing update!");
 
-  // Runstate
-  std::unique_ptr<RequestContext> runstate_req =
-      std::make_unique<RequestContext>(GetRequestPacket::get_runstate_instance());
   // Check cache first
   optional<RunStateGetResponsePacket> runstate_res = sys_state_.check_heatpump_cache<RunStateGetResponsePacket>();
   // If not in cache, try requesting from heatpump
   if (!runstate_res) {
+    // Runstate
+    std::unique_ptr<RequestContext> runstate_req =
+        std::make_unique<RequestContext>(GetRequestPacket::get_runstate_instance());
     runstate_res = co_await RequestAwaiter<RunStateGetResponsePacket, Heatpump>(std::move(runstate_req), *this);
   }
   // If we received it, cache it (cache will notify subscribed receivers)
@@ -117,6 +117,8 @@ Task Heatpump::do_update_queries() {
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Runstate Packet not recevied!");
   }
+
+  // TODO: Check cache for the rest of these
 
   // Settings & Status processed together for mode logic to work
   std::unique_ptr<RequestContext> settings_req =
@@ -163,15 +165,16 @@ Task Heatpump::do_update_queries() {
   }
 
   // Zones (may not work on all units)
-  // TODO: Add zone support setting to avoid these timeouts
-  std::unique_ptr<RequestContext> zone_req = std::make_unique<RequestContext>(GetRequestPacket::get_zone_instance());
-  optional<ZoneGetResponsePacket> zone_res =
-      co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
-  if (zone_res) {
-    ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
-    sys_state_.cache_heatpump_packet(zone_res.value());
-  } else {
-    ESP_LOGI(HEATPUMP_TAG, "Zone info packet not received (may not be supported).");
+  if (zones_enabled_) {
+    std::unique_ptr<RequestContext> zone_req = std::make_unique<RequestContext>(GetRequestPacket::get_zone_instance());
+    optional<ZoneGetResponsePacket> zone_res =
+        co_await RequestAwaiter<ZoneGetResponsePacket, Heatpump>(std::move(zone_req), *this);
+    if (zone_res) {
+      ESP_LOGV(HEATPUMP_TAG, "Received %s", zone_res->to_string().c_str());
+      sys_state_.cache_heatpump_packet(zone_res.value());
+    } else {
+      ESP_LOGI(HEATPUMP_TAG, "Zone info packet not received (may not be supported).");
+    }
   }
 
   update_completed_millis_ = millis();
@@ -190,6 +193,54 @@ bool Heatpump::check_command_queue_() {
 bool Heatpump::send_command(ClimateCommand cmd) {
   if (check_command_queue_()) {
     command_tasks_.push_back(cmd.send(*this));
+    return true;
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");
+    return false;
+  }
+}
+
+bool Heatpump::reset_filter() {
+  if (check_command_queue_()) {
+    SetRunStatePacket set_packet = SetRunStatePacket();
+    set_packet.set_filter_reset(true);
+    command_tasks_.push_back(enqueue_packet<SetResponsePacket>(set_packet));
+    return true;
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");
+    return false;
+  }
+}
+
+bool Heatpump::set_remote_temperature(float degC) {
+  if (check_command_queue_()) {
+    RemoteTemperatureSetRequestPacket set_packet = RemoteTemperatureSetRequestPacket();
+    set_packet.set_remote_temperature(degC);
+    command_tasks_.push_back(enqueue_packet<SetResponsePacket>(set_packet));
+    return true;
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");
+    return false;
+  }
+}
+
+bool Heatpump::use_internal_temperature(bool use_internal) {
+  if (check_command_queue_()) {
+    RemoteTemperatureSetRequestPacket set_packet = RemoteTemperatureSetRequestPacket();
+    set_packet.set_use_internal_temperature(use_internal);
+    command_tasks_.push_back(enqueue_packet<SetResponsePacket>(set_packet));
+    return true;
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");
+    return false;
+  }
+}
+
+bool Heatpump::set_zone_active(uint8_t zone, bool active) {
+  if (check_command_queue_()) {
+    ZoneSetRequestPacket set_packet = ZoneSetRequestPacket();
+    set_packet.set_zone_active(zone, active);
+    command_tasks_.push_back(enqueue_packet<SetResponsePacket>(set_packet));
     return true;
   } else {
     ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");

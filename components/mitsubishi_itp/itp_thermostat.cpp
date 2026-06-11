@@ -52,7 +52,11 @@ Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
     case PacketType::SET_REQUEST:
       switch (static_cast<SetCommand>(raw_request_packet.get_command())) {
         case SetCommand::REMOTE_TEMPERATURE:
-          return send_to_heatpump<RemoteTemperatureSetRequestPacket, SetResponsePacket>(raw_request_packet);
+          if (intercept_remote_temp_) {
+            return send_immediately(SetResponsePacket());
+          } else {
+            return send_to_heatpump<RemoteTemperatureSetRequestPacket, SetResponsePacket>(raw_request_packet);
+          }
         case SetCommand::SETTINGS:
           return send_to_heatpump<SettingsSetRequestPacket, SetResponsePacket>(raw_request_packet);
         case SetCommand::THERMOSTAT_SENSOR_STATUS:
@@ -77,6 +81,11 @@ Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
                format_hex_pretty(raw_request_packet.get_command()).c_str());
       return send_to_heatpump<Packet, UnknownPacket>(raw_request_packet);
   };
+}
+
+Task Thermostat::send_immediately(Packet packet) {
+  write_raw_packet_(packet.raw_packet());
+  co_return;
 }
 
 void Thermostat::write_raw_packet_(const RawPacket &packet_to_send) const {

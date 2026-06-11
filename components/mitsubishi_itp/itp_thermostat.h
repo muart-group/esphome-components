@@ -20,6 +20,8 @@ class Thermostat : public ITPPacketReader {
   Thermostat(uart::UARTComponent *uart_component, Heatpump *connected_heatpump, ITPSystemState *sys_state);
   void loop();
 
+  void intercept_remote_temperatures(bool do_intercept) { intercept_remote_temp_ = do_intercept; };
+
  protected:
   template<class RequestType, class ResponseType> Task send_to_heatpump(RawPacket &raw_request_packet) {
     std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(RequestType(std::move(raw_request_packet)));
@@ -47,6 +49,8 @@ class Thermostat : public ITPPacketReader {
 
   Task handle_thermostat_request(RawPacket &raw_request_packet);
 
+  Task send_immediately(Packet packet);
+
   void write_raw_packet_(const RawPacket &packet_to_send) const;
 
   std::queue<std::unique_ptr<RequestContext>> request_queue_;
@@ -55,6 +59,8 @@ class Thermostat : public ITPPacketReader {
   uint32_t packet_sent_millis_ = 0;
 
   std::unique_ptr<RequestContext> current_request_ctx_ = nullptr;
+
+  bool intercept_remote_temp_ = false;
 };
 
 }  // namespace mitsubishi_itp
