@@ -3,7 +3,7 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-Task ClimateCommand::send() {
+Task ClimateCommand::send(Heatpump &target) {
   SettingsSetRequestPacket set_request_packet = SettingsSetRequestPacket();
   if (fan_speed_) {
     set_request_packet.set_fan(*fan_speed_);
@@ -27,8 +27,11 @@ Task ClimateCommand::send() {
   std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(set_request_packet);
 
   optional<SetResponsePacket> response_pkt =
-      co_await RequestAwaiter<SetResponsePacket, Heatpump>(std::move(req), target_);
-  // TODO: flag a failed response here?
+      co_await RequestAwaiter<SetResponsePacket, Heatpump>(std::move(req), target);
+
+  if (!response_pkt) {
+    ESP_LOGW(HEATPUMP_TAG, "No response from set request!");
+  }
 }
 
 Heatpump::Heatpump(uart::UARTComponent *uart_component, ITPSystemState *sys_state)
@@ -176,6 +179,22 @@ Task Heatpump::do_update_queries() {
 
 void Heatpump::write_raw_packet_(const RawPacket &packet_to_send) const {
   uart_comp_.write_array(packet_to_send.get_bytes(), packet_to_send.get_length());
+}
+
+bool Heatpump::check_command_queue_() {
+  // Clear finished tasks
+  std::erase_if(command_tasks_, [](const Task &t) { return !t.is_running(); });
+  return command_tasks_.size() < MAX_INFLIGHT_COMMANDS;
+}
+
+bool Heatpump::send_command(ClimateCommand cmd) {
+  if (check_command_queue_()) {
+    command_tasks_.push_back(cmd.send(*this));
+    return true;
+  } else {
+    ESP_LOGW(HEATPUMP_TAG, "Command task queue full!");
+    return false;
+  }
 }
 
 }  // namespace mitsubishi_itp

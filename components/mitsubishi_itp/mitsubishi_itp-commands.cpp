@@ -5,13 +5,7 @@ namespace mitsubishi_itp {
 
 // Called to instruct a change of the climate controls
 void MitsubishiUART::control(const climate::ClimateCall &call) {
-  if (command_task_.is_running()) {
-    return;
-  }
-  // TODO: use a vector? of tasks so we don't have to immediately bail on this
-  // Figure out how to clean vector
-
-  ClimateCommand cmd = ClimateCommand(&heatpump_);
+  ClimateCommand cmd = ClimateCommand();
 
   // Apply fan settings
   // Prioritize a custom fan mode if it's set.
@@ -123,7 +117,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   // We're assuming that every climate call *does* make some change worth sending to the heat pump
   // Queue the packet to be sent first (so any subsequent update packets come *after* our changes)
-  command_task_ = cmd.send();
+  heatpump_.send_command(cmd);
 
   // Publish state and any sensor changes (shouldn't be any a result of this function, but
   // since they lazy-publish, no harm in trying)
@@ -131,10 +125,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 }
 
 bool MitsubishiUART::select_vane_position(const std::string &state) {
-  if (command_task_.is_running()) {
-    return false;
-  }
-  ClimateCommand cmd = ClimateCommand(&heatpump_);
+  ClimateCommand cmd = ClimateCommand();
 
   // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
   // infrequently, this is probably a better solution than over-optimizing via maps or something
@@ -158,16 +149,13 @@ bool MitsubishiUART::select_vane_position(const std::string &state) {
     return false;
   }
 
-  command_task_ = cmd.send();
+  heatpump_.send_command(cmd);
 
   return true;
 }
 
 bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
-  if (command_task_.is_running()) {
-    return false;
-  }
-  ClimateCommand cmd = ClimateCommand(&heatpump_);
+  ClimateCommand cmd = ClimateCommand();
 
   // NOTE: Annoyed that C++ doesn't have switches for strings, but since this is going to be called
   // infrequently, this is probably a better solution than over-optimizing via maps or something
@@ -193,7 +181,7 @@ bool MitsubishiUART::select_horizontal_vane_position(const std::string &state) {
     return false;
   }
 
-  command_task_ = cmd.send();
+  heatpump_.send_command(cmd);
 
   return true;
 }
