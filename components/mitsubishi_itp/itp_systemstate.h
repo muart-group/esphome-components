@@ -69,11 +69,11 @@ class ITPSystemState {
     return std::nullopt;
   }
 
-  // Caches the packet, returning true if it was modified, false if it was the same
-  template<class PType> void cache_thermostat_packet(PType incoming_packet) {
+  // Caches the packet and sends to receivers *IF* it's one of the defined cached packet types above (otherwise ignores)
+  template<class PType> void cache_thermostat_packet(PType incoming_packet, bool always_notify = false) {
     if constexpr (is_in_tuple_v<TimestampedValue<PType>, ThermostatPacketCache>) {
       auto &latest_packet = std::get<TimestampedValue<PType>>(thermostat_packet_cache_);
-      if (latest_packet.set(incoming_packet)) {
+      if (latest_packet.set(incoming_packet) || always_notify) {
         send_to_receivers_(incoming_packet);
       }
     }
@@ -92,7 +92,8 @@ class ITPSystemState {
   std::vector<ITPPacketReceiver *> receivers_{};
 
   template<typename T> void send_to_receivers_(const T &packet) const {
-    ESP_LOGD("mitsubishi_itp.system", "Sending %i to %i receivers", packet.get_packet_type(), this->receivers_.size());
+    ESP_LOGD("mitsubishi_itp.system", "Sending %i to %i receivers",
+             esphome::format_hex_pretty(packet.get_packet_type()).c_str(), this->receivers_.size());
     for (auto *receiver : this->receivers_) {
       receiver->receive_packet(packet);
     }

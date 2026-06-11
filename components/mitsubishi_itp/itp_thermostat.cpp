@@ -53,6 +53,9 @@ Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
       switch (static_cast<SetCommand>(raw_request_packet.get_command())) {
         case SetCommand::REMOTE_TEMPERATURE:
           if (intercept_remote_temp_) {
+            // If we're intercepting, cache in incoming packet (to notify MITP for temperature recording)
+            sys_state_.cache_thermostat_packet(RemoteTemperatureSetRequestPacket(std::move(raw_request_packet)), true);
+            // And immediately return a response without contacting heatpump
             return send_immediately(SetResponsePacket());
           } else {
             return send_to_heatpump<RemoteTemperatureSetRequestPacket, SetResponsePacket>(raw_request_packet);

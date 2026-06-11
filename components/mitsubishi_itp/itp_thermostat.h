@@ -44,7 +44,7 @@ class Thermostat : public ITPPacketReader {
 
  private:
   Heatpump &connected_heatpump_;  // Heat pump responsible for handling incoming packets
-  ITPSystemState sys_state_;
+  ITPSystemState &sys_state_;
   Task in_flight_request_;  // Packet currently out for processing by MITP/Heatpump
 
   Task handle_thermostat_request(RawPacket &raw_request_packet);
