@@ -184,13 +184,13 @@ void MitsubishiUART::receive_packet(const StatusGetResponsePacket &packet) {
 
   publish_on_update_ |= (old_action != action);
 }
-void MitsubishiUART::receive_packet(const RunStateGetResponsePacket &packet) {
-  ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
+// void MitsubishiUART::receive_packet(const RunStateGetResponsePacket &packet) {
+//   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
-  run_state_received_ = true;  // Set this since we received one
+//   run_state_received_ = true;  // Set this since we received one
 
-  // TODO: Not sure what AutoMode does yet
-}
+//   // TODO: Not sure what AutoMode does yet
+// }
 
 // void MitsubishiUART::receive_packet(const SettingsSetRequestPacket &packet) {
 //   float packet_temp = packet.get_target_temp();

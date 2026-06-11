@@ -26,20 +26,18 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
 // to invalidate previously stored preferences.
 const uint MITP_PREFERENCE_VERSION = 1;
 
-// // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
-// // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
-// void MitsubishiUART::setup() {
-//   for (auto *listener : listeners_) {
-//     listener->setup();
-//   }
-//   preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
-//   restore_preferences_();
-// #ifdef USE_TIME
-//   this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
-// #endif
-// }
-
-void MitsubishiUART::setup() {}
+// Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
+// Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
+void MitsubishiUART::setup() {
+  for (auto *listener : listeners_) {
+    listener->setup();
+  }
+  preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
+  restore_preferences_();
+#ifdef USE_TIME
+  this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
+#endif
+}
 
 void MitsubishiUART::restore_preferences_() {
   MITPPreferences prefs;
@@ -96,8 +94,9 @@ void MitsubishiUART::loop() {
 }
 
 void MitsubishiUART::dump_config() {
-  if (capabilities_cache_.has_value()) {
-    ESP_LOGCONFIG(TAG, "Discovered Capabilities: %s", capabilities_cache_.value().to_string().c_str());
+  optional<CapabilitiesResponsePacket> opt_cap = itp_sys_state_.check_heatpump_cache<CapabilitiesResponsePacket>();
+  if (opt_cap) {
+    ESP_LOGCONFIG(TAG, "Discovered Capabilities: %s", opt_cap.value().to_string().c_str());
   }
 
   if (enhanced_mhk_support_) {

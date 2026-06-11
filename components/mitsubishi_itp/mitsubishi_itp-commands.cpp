@@ -110,13 +110,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  // TODO:
-  // Vane
-  // HVane?
-  // Swing?
-
   // We're assuming that every climate call *does* make some change worth sending to the heat pump
-  // Queue the packet to be sent first (so any subsequent update packets come *after* our changes)
   heatpump_.send_command(cmd);
 
   // Publish state and any sensor changes (shouldn't be any a result of this function, but

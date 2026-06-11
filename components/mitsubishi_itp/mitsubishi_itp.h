@@ -113,13 +113,9 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Heatpump
   void receive_packet(const CapabilitiesResponsePacket &packet) override;
   void receive_packet(const CurrentTempGetResponsePacket &packet) override;
-  // void receive_packet(const ErrorStateGetResponsePacket &packet) override;
-  // void receive_packet(const Functions1GetResponsePacket &packet) override;
-  // void receive_packet(const Functions2GetResponsePacket &packet) override;
-  void receive_packet(const RunStateGetResponsePacket &packet) override;
+  // void receive_packet(const RunStateGetResponsePacket &packet) override;
   void receive_packet(const SettingsGetResponsePacket &packet) override;
   void receive_packet(const StatusGetResponsePacket &packet) override;
-  // void receive_packet(const ZoneGetResponsePacket &packet) override;
 
   // Thermostat
   void receive_packet(const RemoteTemperatureSetRequestPacket &packet) override;
@@ -148,29 +144,15 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // UARTComponent connected to heatpump
   uart::UARTComponent &hp_uart_;
-  // // UART packet wrapper for heatpump
-  // HeatpumpBridge hp_bridge_;
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
-  // UART packet wrapper for heatpump
 
   ITPSystemState itp_sys_state_ = ITPSystemState();
   Heatpump heatpump_;
   std::unique_ptr<Thermostat> thermostat_ = nullptr;
 
-  // Are we connected to the heatpump?
-  bool hp_connected_ = false;
   // Should we call publish on the next update?
   bool publish_on_update_ = false;
-  // Are we still discovering information about the device?
-  bool in_discovery_ = true;
-  // Number of times update() has been called in discovery mode
-  size_t discovery_updates_ = 0;
-
-  optional<CapabilitiesResponsePacket> capabilities_cache_;
-  bool capabilities_requested_ = false;
-  // Have we received at least one RunState response?
-  bool run_state_received_ = false;
 
 // Time Source
 #ifdef USE_TIME
