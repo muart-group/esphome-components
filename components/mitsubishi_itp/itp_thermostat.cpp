@@ -104,28 +104,36 @@ RawPacket Thermostat::adjust_mhk_temperature(RawPacket &raw_pkt) {
   if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::SET_REQUEST) &&
       raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::REMOTE_TEMPERATURE)) {
     RemoteTemperatureSetRequestPacket temp_pkt = RemoteTemperatureSetRequestPacket(std::move(raw_pkt));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusting MHK temp from %f", temp_pkt.get_remote_temperature());
     temp_pkt.set_remote_temperature(mhk_temp_to_actual(temp_pkt.get_remote_temperature()));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusted MHK temp to %f", temp_pkt.get_remote_temperature());
     return temp_pkt.raw_packet();
   }
   // Set Target
   else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::SET_REQUEST) &&
            raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::SETTINGS)) {
     SettingsSetRequestPacket temp_pkt = SettingsSetRequestPacket(std::move(raw_pkt));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusting MHK temp from %f", temp_pkt.get_target_temp());
     temp_pkt.set_target_temperature(mhk_temp_to_actual(temp_pkt.get_target_temp()));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusted MHK temp to %f", temp_pkt.get_target_temp());
     return temp_pkt.raw_packet();
   }
   // Get Current
   else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::GET_RESPONSE) &&
            raw_pkt.get_command() == static_cast<uint8_t>(GetCommand::CURRENT_TEMP)) {
     CurrentTempGetResponsePacket temp_pkt = CurrentTempGetResponsePacket(std::move(raw_pkt));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusting MHK temp from %f", temp_pkt.get_current_temp());
     temp_pkt.set_current_temperature(mhk_temp_from_actual(temp_pkt.get_current_temp()));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusted MHK temp to %f", temp_pkt.get_current_temp());
     return temp_pkt.raw_packet();
   }
   // Get Target
   else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::GET_RESPONSE) &&
            raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::SETTINGS)) {
     SettingsGetResponsePacket temp_pkt = SettingsGetResponsePacket(std::move(raw_pkt));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusting MHK temp from %f", temp_pkt.get_target_temp());
     temp_pkt.set_target_temperature(mhk_temp_from_actual(temp_pkt.get_target_temp()));
+    ESP_LOGV(THERMOSTAT_TAG, "Adjusted MHK temp to %f", temp_pkt.get_target_temp());
     return temp_pkt.raw_packet();
   } else {
     return raw_pkt;
