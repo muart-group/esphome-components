@@ -17,9 +17,13 @@ void Thermostat::loop() {
   }
 }
 
-// TODO: Keep filling all these in
 // TODO: This might be a better place to check for cache before sending off to heatpump.
 Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
+  // If temperature correction is on, adjust temperatures
+  if (mhk_fahrenheit_correction_) {
+    raw_request_packet = adjust_mhk_temperature(raw_request_packet);
+  }
+
   switch (static_cast<PacketType>(raw_request_packet.get_packet_type())) {
     case PacketType::CONNECT_REQUEST:
       return send_to_heatpump<ConnectRequestPacket, ConnectResponsePacket>(raw_request_packet);
@@ -93,6 +97,39 @@ Task Thermostat::send_immediately(Packet packet) {
 
 void Thermostat::write_raw_packet_(const RawPacket &packet_to_send) const {
   uart_comp_.write_array(packet_to_send.get_bytes(), packet_to_send.get_length());
+}
+
+RawPacket Thermostat::adjust_mhk_temperature(RawPacket &raw_pkt) {
+  // Set Remote
+  if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::SET_REQUEST) &&
+      raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::REMOTE_TEMPERATURE)) {
+    RemoteTemperatureSetRequestPacket temp_pkt = RemoteTemperatureSetRequestPacket(std::move(raw_pkt));
+    temp_pkt.set_remote_temperature(mhk_temp_to_actual(temp_pkt.get_remote_temperature()));
+    return temp_pkt.raw_packet();
+  }
+  // Set Target
+  else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::SET_REQUEST) &&
+           raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::SETTINGS)) {
+    SettingsSetRequestPacket temp_pkt = SettingsSetRequestPacket(std::move(raw_pkt));
+    temp_pkt.set_target_temperature(mhk_temp_to_actual(temp_pkt.get_target_temp()));
+    return temp_pkt.raw_packet();
+  }
+  // Get Current
+  else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::GET_RESPONSE) &&
+           raw_pkt.get_command() == static_cast<uint8_t>(GetCommand::CURRENT_TEMP)) {
+    CurrentTempGetResponsePacket temp_pkt = CurrentTempGetResponsePacket(std::move(raw_pkt));
+    temp_pkt.set_current_temperature(mhk_temp_from_actual(temp_pkt.get_current_temp()));
+    return temp_pkt.raw_packet();
+  }
+  // Get Target
+  else if (raw_pkt.get_packet_type() == static_cast<uint8_t>(PacketType::GET_RESPONSE) &&
+           raw_pkt.get_command() == static_cast<uint8_t>(SetCommand::SETTINGS)) {
+    SettingsGetResponsePacket temp_pkt = SettingsGetResponsePacket(std::move(raw_pkt));
+    temp_pkt.set_target_temperature(mhk_temp_from_actual(temp_pkt.get_target_temp()));
+    return temp_pkt.raw_packet();
+  } else {
+    return raw_pkt;
+  }
 }
 
 }  // namespace mitsubishi_itp

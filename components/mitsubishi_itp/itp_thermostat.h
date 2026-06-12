@@ -7,6 +7,7 @@
 #include <expected>
 #include "itp_requests.h"
 #include "itp_heatpump.h"
+#include "mitp_mhk.h"
 
 using namespace itp_packet;
 
@@ -21,6 +22,7 @@ class Thermostat : public ITPPacketReader {
   void loop();
 
   void intercept_remote_temperatures(bool do_intercept) { intercept_remote_temp_ = do_intercept; };
+  void mhk_fahrenheit_correction(bool do_mhk_f_correction) { mhk_fahrenheit_correction_ = do_mhk_f_correction; };
 
  protected:
   template<class RequestType, class ResponseType> Task send_to_heatpump(RawPacket &raw_request_packet) {
@@ -32,6 +34,11 @@ class Thermostat : public ITPPacketReader {
         co_await RequestAwaiter<ResponseType, Heatpump>(std::move(req), connected_heatpump_);
 
     if (response_pkt) {
+      // If temperature correction is on, adjust temperatures
+      if (mhk_fahrenheit_correction_) {
+        response_pkt = ResponseType(adjust_mhk_temperature(response_pkt->raw_packet()));
+      }
+
       ESP_LOGV(THERMOSTAT_TAG, "Sending to thermostat %s", response_pkt.value().to_string().c_str());
       write_raw_packet_(response_pkt.value().raw_packet());  // Send to thermostat ASAP
       sys_state_.cache_heatpump_packet(
@@ -51,6 +58,8 @@ class Thermostat : public ITPPacketReader {
 
   Task send_immediately(Packet packet);
 
+  RawPacket adjust_mhk_temperature(RawPacket &raw_pkt);
+
   void write_raw_packet_(const RawPacket &packet_to_send) const;
 
   std::queue<std::unique_ptr<RequestContext>> request_queue_;
@@ -61,6 +70,7 @@ class Thermostat : public ITPPacketReader {
   std::unique_ptr<RequestContext> current_request_ctx_ = nullptr;
 
   bool intercept_remote_temp_ = false;
+  bool mhk_fahrenheit_correction_ = false;
 };
 
 }  // namespace mitsubishi_itp
