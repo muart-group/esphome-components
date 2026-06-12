@@ -83,6 +83,7 @@ Task Heatpump::do_connect() {
 
   if (connect_res) {
     connected_ = true;  // Connected!
+    sys_state_.set_connected(true);
 
     // Once we're connected, try once to discover
     std::unique_ptr<RequestContext> disc_req = std::make_unique<RequestContext>(CapabilitiesRequestPacket::instance());

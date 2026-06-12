@@ -47,6 +47,7 @@ template<typename T, typename Tuple> inline constexpr bool is_in_tuple_v = is_in
 
 class ITPSystemState {
  public:
+  void set_connected(bool is_connected) { connected_.set(is_connected); }
   bool is_connected() { return connected_.value.value(); }
 
   void register_receiver(ITPPacketReceiver *receiver) { this->receivers_.push_back(receiver); }
