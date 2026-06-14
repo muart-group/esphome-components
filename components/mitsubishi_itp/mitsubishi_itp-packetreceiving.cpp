@@ -81,20 +81,20 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
     mode_recall_setpoints_[mode] = target_temperature;
   }
 
-  switch (mode) {
-    case climate::CLIMATE_MODE_COOL:
-    case climate::CLIMATE_MODE_DRY:
-      this->mhk_state_.cool_setpoint_ = target_temperature;
-      break;
-    case climate::CLIMATE_MODE_HEAT:
-      this->mhk_state_.heat_setpoint_ = target_temperature;
-      break;
-    case climate::CLIMATE_MODE_HEAT_COOL:
-      this->mhk_state_.cool_setpoint_ = target_temperature + 2;
-      this->mhk_state_.heat_setpoint_ = target_temperature - 2;
-    default:
-      break;
-  }
+  // switch (mode) {
+  //   case climate::CLIMATE_MODE_COOL:
+  //   case climate::CLIMATE_MODE_DRY:
+  //     this->mhk_state_.cool_setpoint_ = target_temperature;
+  //     break;
+  //   case climate::CLIMATE_MODE_HEAT:
+  //     this->mhk_state_.heat_setpoint_ = target_temperature;
+  //     break;
+  //   case climate::CLIMATE_MODE_HEAT_COOL:
+  //     this->mhk_state_.cool_setpoint_ = target_temperature + 2;
+  //     this->mhk_state_.heat_setpoint_ = target_temperature - 2;
+  //   default:
+  //     break;
+  // }
 
   // Fan
   static bool fan_changed = false;
@@ -217,84 +217,6 @@ void MitsubishiUART::receive_packet(const RemoteTemperatureSetRequestPacket &pac
     temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
   }
 }
-
-// void MitsubishiUART::process_packet(const ThermostatStateUploadPacket &packet) {
-//   if (!enhanced_mhk_support_) {
-//     ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-
-//     route_packet_(packet);
-//     return;
-//   }
-
-//   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
-
-//   // In Fahrenheit correction mode, we store the actual temp in mhk_state_ and only alter it just in time to
-//   // send/receive over the wire
-//   if (packet.get_flags() & 0x08) {
-//     this->mhk_state_.heat_setpoint_ =
-//         mhk_f_correction_ ? mhk_temp_to_actual(packet.get_heat_setpoint()) : packet.get_heat_setpoint();
-//   }
-//   if (packet.get_flags() & 0x10) {
-//     this->mhk_state_.cool_setpoint_ =
-//         mhk_f_correction_ ? mhk_temp_to_actual(packet.get_cool_setpoint()) : packet.get_cool_setpoint();
-//   }
-
-//   ts_bridge_->send_packet(SetResponsePacket());
-// }
-
-// void MitsubishiUART::process_packet(const ThermostatAASetRequestPacket &packet) {
-//   if (!enhanced_mhk_support_) {
-//     ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-
-//     route_packet_(packet);
-//     return;
-//   }
-
-//   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
-
-//   ts_bridge_->send_packet(SetResponsePacket());
-// }
-
-// TODO: Fix mhk2 mode
-
-// // Process incoming data requests from an MHK probing for/running in enhanced mode
-// void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPacket &packet) {
-//   if (!enhanced_mhk_support_) {
-//     route_packet_(packet);
-//     return;
-//   }
-
-//   auto response = ThermostatStateDownloadResponsePacket();
-
-// #ifdef USE_TIME
-//   if (this->time_sync_) {
-//     response.set_timestamp(this->time_source_->now().timestamp);
-//   } else {
-//     ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
-//     response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
-//   }
-// #endif
-
-//   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
-//   // We store the actual temp in mhk_state_ and only alter it just in time to send/receive over the wire
-//   response.set_heat_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.heat_setpoint_)
-//                                                : this->mhk_state_.heat_setpoint_);
-//   response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
-//                                                : this->mhk_state_.cool_setpoint_);
-
-//   ts_bridge_->send_packet(response);
-// }
-
-// void MitsubishiUART::handle_thermostat_ab_get_request(const GetRequestPacket &packet) {
-//   if (!enhanced_mhk_support_) {
-//     route_packet_(packet);
-//     return;
-//   }
-
-//   auto response = ThermostatABGetResponsePacket();
-
-//   ts_bridge_->send_packet(response);
-// }
 
 }  // namespace mitsubishi_itp
 }  // namespace esphome

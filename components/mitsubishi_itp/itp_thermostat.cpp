@@ -48,7 +48,19 @@ Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
         case GetCommand::ZONE_STATE:
           return send_to_heatpump<GetRequestPacket, ZoneGetResponsePacket>(raw_request_packet);
         case GetCommand::THERMOSTAT_STATE_DOWNLOAD:
-          return send_to_heatpump<GetRequestPacket, ThermostatStateDownloadResponsePacket>(raw_request_packet);
+          ESP_LOGD(THERMOSTAT_TAG, "Got get download!");
+          if (enhanced_mhk_) {
+            return send_immediately(get_state_download_response());
+          } else {
+            return send_to_heatpump<GetRequestPacket, ThermostatStateDownloadResponsePacket>(raw_request_packet);
+          }
+        case GetCommand::THERMOSTAT_GET_AB:
+          ESP_LOGD(THERMOSTAT_TAG, "Got get AB!");
+          if (enhanced_mhk_) {
+            return send_immediately(ThermostatABGetResponsePacket());
+          } else {
+            return send_to_heatpump<GetRequestPacket, ThermostatStateDownloadResponsePacket>(raw_request_packet);
+          }
         default:
           // Unknown GET_REQUEST goes to default
           goto unknown_packet;
@@ -67,15 +79,43 @@ Task Thermostat::handle_thermostat_request(RawPacket &raw_request_packet) {
         case SetCommand::SETTINGS:
           return send_to_heatpump<SettingsSetRequestPacket, SetResponsePacket>(raw_request_packet);
         case SetCommand::THERMOSTAT_SENSOR_STATUS:
-          return send_to_heatpump<ThermostatSensorStatusPacket, SetResponsePacket>(raw_request_packet);
+          ESP_LOGD(THERMOSTAT_TAG, "Got sensor status!");
+          if (enhanced_mhk_) {
+            ESP_LOGD(THERMOSTAT_TAG, "Got sensor status!");
+            // No processing to be done here, it's just forwarded to sensors
+            sys_state_.cache_thermostat_packet(ThermostatSensorStatusPacket(std::move(raw_request_packet)), true);
+            return send_immediately(SetResponsePacket());
+          } else {
+            return send_to_heatpump<ThermostatSensorStatusPacket, SetResponsePacket>(raw_request_packet);
+          }
         case SetCommand::THERMOSTAT_HELLO:
-          return send_to_heatpump<ThermostatHelloPacket, SetResponsePacket>(raw_request_packet);
+          // TODO: Log this info?
+          if (enhanced_mhk_) {
+            ESP_LOGD(THERMOSTAT_TAG, "Got Hello!");
+            sys_state_.cache_thermostat_packet(ThermostatHelloPacket(std::move(raw_request_packet)), true);
+            ESP_LOGD(THERMOSTAT_TAG, "Sending response to Hello...");
+            return send_immediately(SetResponsePacket());
+          } else {
+            return send_to_heatpump<ThermostatHelloPacket, SetResponsePacket>(raw_request_packet);
+          }
+
         case SetCommand::THERMOSTAT_STATE_UPLOAD:
-          return send_to_heatpump<ThermostatStateUploadPacket, SetResponsePacket>(raw_request_packet);
+          ESP_LOGD(THERMOSTAT_TAG, "Got state upload!");
+          if (enhanced_mhk_) {
+            handle_state_upload(raw_request_packet);
+            return send_immediately(SetResponsePacket());
+          } else {
+            return send_to_heatpump<ThermostatStateUploadPacket, SetResponsePacket>(raw_request_packet);
+          }
         case SetCommand::ZONE_STATE:
           return send_to_heatpump<ZoneSetRequestPacket, SetResponsePacket>(raw_request_packet);
         case SetCommand::THERMOSTAT_SET_AA:
-          return send_to_heatpump<ThermostatAASetRequestPacket, SetResponsePacket>(raw_request_packet);
+          ESP_LOGD(THERMOSTAT_TAG, "Got set AA!");
+          if (enhanced_mhk_) {
+            return send_immediately(SetResponsePacket());
+          } else {
+            return send_to_heatpump<ThermostatAASetRequestPacket, SetResponsePacket>(raw_request_packet);
+          }
         default:
           // Unknown SET_REQUEST goes to default
           goto unknown_packet;
@@ -138,6 +178,35 @@ RawPacket Thermostat::adjust_mhk_temperature(RawPacket &raw_pkt) {
   } else {
     return raw_pkt;
   }
+}
+
+void Thermostat::handle_state_upload(RawPacket &raw_pkt) {
+  auto packet = ThermostatStateUploadPacket(std::move(raw_pkt));
+  if (packet.get_flags() & 0x08) {
+    this->mhk_state_.heat_setpoint_ =
+        mhk_fahrenheit_correction_ ? mhk_temp_to_actual(packet.get_heat_setpoint()) : packet.get_heat_setpoint();
+  }
+  if (packet.get_flags() & 0x10) {
+    this->mhk_state_.cool_setpoint_ =
+        mhk_fahrenheit_correction_ ? mhk_temp_to_actual(packet.get_cool_setpoint()) : packet.get_cool_setpoint();
+  }
+  sys_state_.cache_thermostat_packet(packet, true);  // Always notify for humidity reports
+}
+
+ThermostatStateDownloadResponsePacket Thermostat::get_state_download_response() {
+  auto response = ThermostatStateDownloadResponsePacket();
+
+  response.set_timestamp(get_epoch_timestamp_());  // 2024-01-01 00:00:00Z
+
+  // TODO: Figure out where to get this / what it's for
+  //   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
+  //   // We store the actual temp in mhk_state_ and only alter it just in time to send/receive over the wire
+  //   response.set_heat_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.heat_setpoint_)
+  //                                                : this->mhk_state_.heat_setpoint_);
+  //   response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
+  //                                                : this->mhk_state_.cool_setpoint_);
+
+  return response;
 }
 
 }  // namespace mitsubishi_itp

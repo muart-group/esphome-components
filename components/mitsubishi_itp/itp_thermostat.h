@@ -23,6 +23,8 @@ class Thermostat : public ITPPacketReader {
 
   void intercept_remote_temperatures(bool do_intercept) { intercept_remote_temp_ = do_intercept; };
   void mhk_fahrenheit_correction(bool do_mhk_f_correction) { mhk_fahrenheit_correction_ = do_mhk_f_correction; };
+  void enchanced_mhk(bool enable_enhanced_mhk) { enhanced_mhk_ = enable_enhanced_mhk; };
+  void set_epoch_timestamp_source(std::function<time_t()> source_function) { get_epoch_timestamp_ = source_function; };
 
  protected:
   template<class RequestType, class ResponseType> Task send_to_heatpump(RawPacket &raw_request_packet) {
@@ -62,6 +64,9 @@ class Thermostat : public ITPPacketReader {
 
   void write_raw_packet_(const RawPacket &packet_to_send) const;
 
+  void handle_state_upload(RawPacket &raw_pkt);
+  ThermostatStateDownloadResponsePacket get_state_download_response();
+
   std::queue<std::unique_ptr<RequestContext>> request_queue_;
 
   uint32_t update_sent_millis_ = 0;
@@ -71,6 +76,12 @@ class Thermostat : public ITPPacketReader {
 
   bool intercept_remote_temp_ = false;
   bool mhk_fahrenheit_correction_ = false;
+  bool enhanced_mhk_ = false;
+  std::function<time_t()> get_epoch_timestamp_ = []() {
+    ESP_LOGW(THERMOSTAT_TAG, "Time source is not synchronized. Cannot provide accurate time!");
+    return 1704067200;  // 2024-01-01 00:00:00Z
+  };
+  MHKState mhk_state_;
 };
 
 }  // namespace mitsubishi_itp

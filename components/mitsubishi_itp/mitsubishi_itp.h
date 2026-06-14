@@ -93,7 +93,11 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   void set_zones_enabled(bool enabled) { heatpump_.enable_zones(enabled); }
 
   // Turns on or off Kumo emulation mode
-  void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
+  void set_enhanced_mhk_support(const bool supports) {
+    if (thermostat_) {
+      thermostat_->enchanced_mhk(supports);
+    }
+  }
 
   // Turns on or off MHK Fahrenheit conversion correction
   void set_mhk_f_correction(const bool enabled) {
@@ -104,6 +108,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Enables the recall setpoint feature
   void set_recall_setpoint(const bool enabled) { recall_setpoint_ = enabled; }
+
+  time_t get_epoch_timestamp();
 
 #ifdef USE_TIME
   void set_time_source(time::RealTimeClock *rtc) { time_source_ = rtc; }
@@ -188,17 +194,17 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   uint32_t temperature_source_echo_last_timestamp_ = 0;  // Timestamp of last sent temperature
 
   // used to track whether to support/handle the enhanced MHK protocol packets
-  bool enhanced_mhk_support_ = false;
+  // bool enhanced_mhk_support_ = false;
 
   // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
-  bool mhk_f_correction_ = false;
+  // bool mhk_f_correction_ = false;
 
   // If enabled, switching modes will recall target mode's previous setpoint
   bool recall_setpoint_ = false;
   // Array stores a float setpoint for each climate mode up to DRY.
   std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_ = {0.0f};
 
-  MHKState mhk_state_;
+  // MHKState mhk_state_;
 
   // Preferences
   void save_preferences_();

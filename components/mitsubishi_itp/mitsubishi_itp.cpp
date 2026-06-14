@@ -35,7 +35,12 @@ void MitsubishiUART::setup() {
   preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
   restore_preferences_();
 #ifdef USE_TIME
-  this->time_source_->add_on_time_sync_callback([this] { this->time_sync_ = true; });
+  this->time_source_->add_on_time_sync_callback([this] {
+    this->time_sync_ = true;
+    if (this->thermostat_) {
+      this->thermostat_->set_epoch_timestamp_source(std::bind(&MitsubishiUART::get_epoch_timestamp, this));
+    }
+  });
 #endif
 }
 
@@ -99,9 +104,10 @@ void MitsubishiUART::dump_config() {
     ESP_LOGCONFIG(TAG, "Discovered Capabilities: %s", opt_cap.value().to_string().c_str());
   }
 
-  if (enhanced_mhk_support_) {
-    ESP_LOGCONFIG(TAG, "MHK Enhanced Protocol Mode is ENABLED! This is currently *experimental* and things may break!");
-  }
+  // if ()) {
+  //   ESP_LOGCONFIG(TAG, "MHK Enhanced Protocol Mode is ENABLED! This is currently *experimental* and things may
+  //   break!");
+  // }
 }
 
 // Set thermostat UART component
@@ -215,6 +221,15 @@ void MitsubishiUART::reset_filter_status() {
   ESP_LOGI(TAG, "Received a request to reset the filter status.");
 
   heatpump_.reset_filter();
+}
+
+time_t MitsubishiUART::get_epoch_timestamp() {
+  if (this->time_sync_) {
+    return this->time_source_->now().timestamp;
+  } else {
+    ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
+    return 1704067200;  // 2024-01-01 00:00:00Z
+  }
 }
 
 }  // namespace mitsubishi_itp

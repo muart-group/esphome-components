@@ -85,30 +85,30 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  if (call.get_target_temperature().has_value() || call.get_mode().has_value()) {
-    // update our MHK tracking setpoints accordingly
-    switch (mode) {
-      case climate::CLIMATE_MODE_COOL:
-      case climate::CLIMATE_MODE_DRY:
-        this->mhk_state_.cool_setpoint_ = target_temperature;
-        break;
-      case climate::CLIMATE_MODE_HEAT:
-        this->mhk_state_.heat_setpoint_ = target_temperature;
-        break;
-      case climate::CLIMATE_MODE_HEAT_COOL:
-        if (this->get_traits().has_feature_flags(
-                climate::ClimateFeature::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE)) {
-          this->mhk_state_.cool_setpoint_ = target_temperature_low;
-          this->mhk_state_.heat_setpoint_ = target_temperature_high;
-        } else {
-          // HACK: This is not accurate, but it's good enough for testing.
-          this->mhk_state_.cool_setpoint_ = target_temperature + 2;
-          this->mhk_state_.heat_setpoint_ = target_temperature - 2;
-        }
-      default:
-        break;
-    }
-  }
+  // if (call.get_target_temperature().has_value() || call.get_mode().has_value()) {
+  //   // update our MHK tracking setpoints accordingly
+  //   switch (mode) {
+  //     case climate::CLIMATE_MODE_COOL:
+  //     case climate::CLIMATE_MODE_DRY:
+  //       this->mhk_state_.cool_setpoint_ = target_temperature;
+  //       break;
+  //     case climate::CLIMATE_MODE_HEAT:
+  //       this->mhk_state_.heat_setpoint_ = target_temperature;
+  //       break;
+  //     case climate::CLIMATE_MODE_HEAT_COOL:
+  //       if (this->get_traits().has_feature_flags(
+  //               climate::ClimateFeature::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE)) {
+  //         this->mhk_state_.cool_setpoint_ = target_temperature_low;
+  //         this->mhk_state_.heat_setpoint_ = target_temperature_high;
+  //       } else {
+  //         // HACK: This is not accurate, but it's good enough for testing.
+  //         this->mhk_state_.cool_setpoint_ = target_temperature + 2;
+  //         this->mhk_state_.heat_setpoint_ = target_temperature - 2;
+  //       }
+  //     default:
+  //       break;
+  //   }
+  // }
 
   // We're assuming that every climate call *does* make some change worth sending to the heat pump
   heatpump_.send_command(cmd);
