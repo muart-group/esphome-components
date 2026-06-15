@@ -78,6 +78,9 @@ class Heatpump : public ITPPacketReader {
 
   void enable_zones(bool enable = true) { zones_enabled_ = enable; };
 
+  // Wait this long between completion of an update and the start of the next update
+  void set_update_interval(uint32_t interval_ms) { update_interval_ms_ = interval_ms; };
+
   // Checks to see if there is room in command_tasks_ then executes comand and stores the Task
   bool send_command(ClimateCommand command);
 
@@ -101,6 +104,10 @@ class Heatpump : public ITPPacketReader {
 
   bool zones_enabled_ = false;
 
+  // Interval at which the Heatpump class will generate it own update queries to the heatpump (if the case isn't
+  // newer)
+  uint32_t update_interval_ms_ = 6000;
+
   void write_raw_packet_(const RawPacket &packet_to_send) const;  // Write out packet to heatpump UART
 
   Task do_update_queries();  // Creates and enqueues Awaiters, and then processes the results
@@ -116,6 +123,10 @@ class Heatpump : public ITPPacketReader {
     std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(packet);
 
     optional<ResponsePacket> response_pkt = co_await RequestAwaiter<ResponsePacket, Heatpump>(std::move(req), *this);
+
+    if (!response_pkt) {
+      ESP_LOGW(HEATPUMP_TAG, "No response to enqueued heatpump packet!");
+    }
   };
 };
 

@@ -13,6 +13,7 @@ template<class T> struct TimestampedValue {
   std::optional<T> value{std::nullopt};
   uint32_t updated_at{0};  // Millis when the value was last checked
 
+  // Updates the stored value (sets updated_at to now), and returns true if the value changed
   bool set(T new_value) {
     updated_at = esphome::millis();
     if (!value || value != new_value) {

@@ -29,11 +29,16 @@ const uint MITP_PREFERENCE_VERSION = 1;
 // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
 void MitsubishiUART::setup() {
+  // Set Heatpump update interval to same as ESPHome update interval (because Heatpump interval is
+  // *between* updates, this will drift, but that's fine, everything will be synced within 2x the interval)
+  heatpump_.set_update_interval(this->update_interval_);
+
   for (auto *listener : listeners_) {
     listener->setup();
   }
   preferences_ = this->make_entity_preference<MITPPreferences>(MITP_PREFERENCE_VERSION);
   restore_preferences_();
+
 #ifdef USE_TIME
   this->time_source_->add_on_time_sync_callback([this] {
     this->time_sync_ = true;
@@ -126,17 +131,12 @@ be about `update_interval` late from their actual time.  Generally the update in
 (default is 5seconds) this won't pose a practical problem.
 */
 void MitsubishiUART::update() {
-  // TODO: Temporarily wait 5 seconds on startup to help with viewing logs
-  if (millis() < 5000) {
-    return;
-  }
-  // Before requesting additional updates, publish any changes waiting from packets received
-
   // Notify all listeners a publish is happening, they will decide if actual publish is needed.
   for (auto *listener : listeners_) {
     listener->publish();
   }
 
+  // If any climate values have changed, publish
   if (publish_on_update_) {
     do_publish_();
 
@@ -231,13 +231,13 @@ tm MitsubishiUART::get_timestruct() {
         .tm_min = now.minute,
         .tm_hour = now.hour,
         .tm_mday = now.day_of_month,
-        .tm_mon = now.month,
+        .tm_mon = now.month - 1,
         .tm_year = now.year - 1900,
 
     };
   } else {
     ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
-    return tm{.tm_mday = 1, .tm_mon = 1, .tm_year = 124};  // 2024-01-01 00:00:00Z
+    return tm{.tm_mday = 1, .tm_mon = 0, .tm_year = 124};  // 2024-01-01 00:00:00Z
   }
 }
 

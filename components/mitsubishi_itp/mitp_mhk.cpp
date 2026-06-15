@@ -18,7 +18,7 @@ static const std::map<float, float> mhk_rewrite_map_ = {
 // temperature in whole degrees Fahrenheit. This will actually output a slightly different Celcius value since the
 // conversion happens internally in the MHK.
 float mhk_temp_from_actual(float actual_c) {
-  if (actual_c == NAN) {
+  if (std::isnan(actual_c)) {
     return NAN;
   }
 
@@ -29,7 +29,7 @@ float mhk_temp_from_actual(float actual_c) {
 // Take a temperature in Celcius that came from the MHK and adjust it so that it corresponds as closely as possible to
 // the actual Fahrenheit value shown on the MHK display.
 float mhk_temp_to_actual(float mhk_c) {
-  if (mhk_c == NAN) {
+  if (std::isnan(mhk_c)) {
     return NAN;
   }
 

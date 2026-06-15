@@ -99,7 +99,7 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
   // }
 
   // Fan
-  static bool fan_changed = false;
+  bool fan_changed = false;
   switch (packet.get_fan()) {
     case 0x00:
       fan_changed = set_fan_mode_(climate::CLIMATE_FAN_AUTO);

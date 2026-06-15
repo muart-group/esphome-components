@@ -183,11 +183,11 @@ RawPacket Thermostat::adjust_mhk_temperature(RawPacket &raw_pkt) {
 void Thermostat::handle_state_upload(RawPacket &raw_pkt) {
   auto packet = ThermostatStateUploadPacket(std::move(raw_pkt));
   if (packet.get_flags() & 0x08) {
-    this->mhk_state_.heat_setpoint_ =
+    this->mhk_state_.heat_setpoint =
         mhk_fahrenheit_correction_ ? mhk_temp_to_actual(packet.get_heat_setpoint()) : packet.get_heat_setpoint();
   }
   if (packet.get_flags() & 0x10) {
-    this->mhk_state_.cool_setpoint_ =
+    this->mhk_state_.cool_setpoint =
         mhk_fahrenheit_correction_ ? mhk_temp_to_actual(packet.get_cool_setpoint()) : packet.get_cool_setpoint();
   }
   sys_state_.cache_thermostat_packet(packet, true);  // Always notify for humidity reports
@@ -196,7 +196,7 @@ void Thermostat::handle_state_upload(RawPacket &raw_pkt) {
 ThermostatStateDownloadResponsePacket Thermostat::get_state_download_response() {
   ThermostatStateDownloadResponsePacket response = ThermostatStateDownloadResponsePacket();
 
-  response.set_timestamp(get_timestruct_());
+  response = response.set_timestamp(get_timestruct_());
 
   // TODO: Figure out where to get this / what it's for
   //   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
@@ -206,7 +206,7 @@ ThermostatStateDownloadResponsePacket Thermostat::get_state_download_response() 
   //   response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
   //                                                : this->mhk_state_.cool_setpoint_);
 
-  // ESP_LOGD(THERMOSTAT_TAG, "Sending timestamp %i", get_timestruct_());
+  ESP_LOGD(THERMOSTAT_TAG, "Sending %s", response.to_string().c_str());
 
   return response;
 }

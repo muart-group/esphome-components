@@ -42,7 +42,7 @@ void Heatpump::loop() {
   // If we're connected, periodically ask for updates
   if (!connected_ && !hp_task_.is_running()) {
     hp_task_ = do_connect();
-  } else if (connected_ && !hp_task_.is_running() && millis() - update_completed_millis_ > 16000) {
+  } else if (connected_ && !hp_task_.is_running() && millis() - update_completed_millis_ > update_interval_ms_) {
     ESP_LOGD(HEATPUMP_TAG, "Starting new update_task");
     hp_task_ = do_update_queries();
   }

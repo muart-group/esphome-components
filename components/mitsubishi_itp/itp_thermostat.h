@@ -28,9 +28,10 @@ class Thermostat : public ITPPacketReader {
 
  protected:
   template<class RequestType, class ResponseType> Task send_to_heatpump(RawPacket &raw_request_packet) {
-    std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(RequestType(std::move(raw_request_packet)));
+    RequestType typed_request(std::move(raw_request_packet));
+    sys_state_.cache_thermostat_packet(typed_request);
+    std::unique_ptr<RequestContext> req = std::make_unique<RequestContext>(typed_request);
     ESP_LOGV(THERMOSTAT_TAG, "Receiving from thermostat %s", req->request.to_string().c_str());
-    sys_state_.cache_thermostat_packet(static_cast<RequestType *>(&req->request));
 
     optional<ResponseType> response_pkt =
         co_await RequestAwaiter<ResponseType, Heatpump>(std::move(req), connected_heatpump_);
@@ -79,7 +80,7 @@ class Thermostat : public ITPPacketReader {
   bool enhanced_mhk_ = false;
   std::function<tm()> get_timestruct_ = []() {
     ESP_LOGW(THERMOSTAT_TAG, "Time source is not synchronized. Cannot provide accurate time!");
-    return tm{.tm_mday = 1, .tm_mon = 1, .tm_year = 124};  // 2024-01-01 00:00:00Z
+    return tm{.tm_mday = 1, .tm_mon = 0, .tm_year = 124};  // 2024-01-01 00:00:00Z
   };
   MHKState mhk_state_;
 };

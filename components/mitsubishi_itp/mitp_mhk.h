@@ -7,8 +7,8 @@ namespace mitsubishi_itp {
 
 /// A struct that represents the connected MHK's state for management and synchronization purposes.
 struct MHKState {
-  float cool_setpoint_ = NAN;
-  float heat_setpoint_ = NAN;
+  float cool_setpoint = NAN;
+  float heat_setpoint = NAN;
 };
 
 float mhk_temp_from_actual(float actual_c);
