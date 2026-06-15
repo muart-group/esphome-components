@@ -38,7 +38,7 @@ void MitsubishiUART::setup() {
   this->time_source_->add_on_time_sync_callback([this] {
     this->time_sync_ = true;
     if (this->thermostat_) {
-      this->thermostat_->set_epoch_timestamp_source(std::bind(&MitsubishiUART::get_epoch_timestamp, this));
+      this->thermostat_->set_timestruct_source(std::bind(&MitsubishiUART::get_timestruct, this));
     }
   });
 #endif
@@ -223,12 +223,21 @@ void MitsubishiUART::reset_filter_status() {
   heatpump_.reset_filter();
 }
 
-time_t MitsubishiUART::get_epoch_timestamp() {
+tm MitsubishiUART::get_timestruct() {
   if (this->time_sync_) {
-    return this->time_source_->now().timestamp;
+    esphome::ESPTime now = this->time_source_->now();
+    return tm{
+        .tm_sec = now.second,
+        .tm_min = now.minute,
+        .tm_hour = now.hour,
+        .tm_mday = now.day_of_month,
+        .tm_mon = now.month,
+        .tm_year = now.year - 1900,
+
+    };
   } else {
     ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
-    return 1704067200;  // 2024-01-01 00:00:00Z
+    return tm{.tm_mday = 1, .tm_mon = 1, .tm_year = 124};  // 2024-01-01 00:00:00Z
   }
 }
 

@@ -81,6 +81,8 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
     mode_recall_setpoints_[mode] = target_temperature;
   }
 
+  // TODO: mhk_state
+
   // switch (mode) {
   //   case climate::CLIMATE_MODE_COOL:
   //   case climate::CLIMATE_MODE_DRY:

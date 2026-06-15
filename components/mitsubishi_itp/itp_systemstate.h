@@ -93,8 +93,7 @@ class ITPSystemState {
   std::vector<ITPPacketReceiver *> receivers_{};
 
   template<typename T> void send_to_receivers_(const T &packet) const {
-    ESP_LOGD("mitsubishi_itp.system", "Sending %s to %i receivers",
-             esphome::format_hex_pretty(packet.get_packet_type()).c_str(), this->receivers_.size());
+    ESP_LOGD("mitsubishi_itp.system", "Received %s", packet.to_string().c_str());
     for (auto *receiver : this->receivers_) {
       receiver->receive_packet(packet);
     }

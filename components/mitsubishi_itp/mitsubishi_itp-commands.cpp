@@ -85,6 +85,8 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
+  // TODO: mhk_state
+
   // if (call.get_target_temperature().has_value() || call.get_mode().has_value()) {
   //   // update our MHK tracking setpoints accordingly
   //   switch (mode) {

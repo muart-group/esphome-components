@@ -109,7 +109,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Enables the recall setpoint feature
   void set_recall_setpoint(const bool enabled) { recall_setpoint_ = enabled; }
 
-  time_t get_epoch_timestamp();
+  tm get_timestruct();
 
 #ifdef USE_TIME
   void set_time_source(time::RealTimeClock *rtc) { time_source_ = rtc; }

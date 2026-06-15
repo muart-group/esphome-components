@@ -194,9 +194,9 @@ void Thermostat::handle_state_upload(RawPacket &raw_pkt) {
 }
 
 ThermostatStateDownloadResponsePacket Thermostat::get_state_download_response() {
-  auto response = ThermostatStateDownloadResponsePacket();
+  ThermostatStateDownloadResponsePacket response = ThermostatStateDownloadResponsePacket();
 
-  response.set_timestamp(get_epoch_timestamp_());  // 2024-01-01 00:00:00Z
+  response.set_timestamp(get_timestruct_());
 
   // TODO: Figure out where to get this / what it's for
   //   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
@@ -205,6 +205,8 @@ ThermostatStateDownloadResponsePacket Thermostat::get_state_download_response() 
   //                                                : this->mhk_state_.heat_setpoint_);
   //   response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
   //                                                : this->mhk_state_.cool_setpoint_);
+
+  // ESP_LOGD(THERMOSTAT_TAG, "Sending timestamp %i", get_timestruct_());
 
   return response;
 }

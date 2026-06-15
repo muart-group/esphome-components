@@ -76,7 +76,7 @@ class Heatpump : public ITPPacketReader {
   // Enqueues a request to be sent to the heatpump
   void enqueue_request(std::unique_ptr<RequestContext> req);
 
-  bool enable_zones(bool enable = true) { zones_enabled_ = enable; };
+  void enable_zones(bool enable = true) { zones_enabled_ = enable; };
 
   // Checks to see if there is room in command_tasks_ then executes comand and stores the Task
   bool send_command(ClimateCommand command);

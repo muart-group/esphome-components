@@ -120,7 +120,7 @@ async def to_code(config):
         cg.add(traits.set_supported_fan_modes(config[CONF_SUPPORTED_FAN_MODES]))
 
     if CONF_CUSTOM_FAN_MODES in config and len(config[CONF_CUSTOM_FAN_MODES]) > 0:
-        cg.add(traits.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
+        cg.add(mitp_component.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
 
     # Debug Settings
     if enhanced_mhk_protocol := config.get(CONF_ENHANCED_MHK_SUPPORT):

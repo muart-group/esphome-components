@@ -18,7 +18,7 @@ static constexpr char REQUESTS_TAG[] = "mitsubishi_itp.requests";
 // Common base class for heatpumps and thermostats to provide packet buffer and check_for_packet functionality
 class ITPPacketReader {
  public:
-  ITPPacketReader(uart::UARTComponent *uart_component, char *log_name)
+  ITPPacketReader(uart::UARTComponent *uart_component, const char *log_name)
       : uart_comp_{*uart_component}, log_name_{log_name} {}
 
  protected:
@@ -28,7 +28,7 @@ class ITPPacketReader {
   optional<RawPacket> check_for_packet();
 
  private:
-  char *log_name_;
+  const char *log_name_;
 };
 
 //
