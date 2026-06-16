@@ -15,6 +15,23 @@ void MitsubishiUART::route_packet_(const Packet &packet) {
   }
 }
 
+float MitsubishiUART::get_corrected_temp_for_packet_(const Packet &packet, const float temp) {
+  if (!mhk_f_correction_ || packet.get_controller_association() != ControllerAssociation::THERMOSTAT ||
+      packet.get_source_bridge() == SourceBridge::NONE) {
+    return temp;
+  }
+  if (packet.get_source_bridge() == SourceBridge::THERMOSTAT) {
+    const float corrected_temp = mhk_temp_to_actual(temp);
+    ESP_LOGV(TAG, "Fahrenheit correction: %.1fC MHK to %.1fC actual for %.0fF", temp, corrected_temp,
+             round(corrected_temp * 9.0f / 5.0f + 32.0f));
+    return corrected_temp;
+  }
+  const float corrected_temp = mhk_temp_from_actual(temp);
+  ESP_LOGV(TAG, "Fahrenheit correction: %.1fC actual to %.1fC MHK for %.0fF", temp, corrected_temp,
+           round(temp * 9.0f / 5.0f + 32.0f));
+  return corrected_temp;
+}
+
 // Packet Handlers
 void MitsubishiUART::process_packet(const Packet &packet) {
   ESP_LOGI(TAG, "Generic unhandled packet type %x received.", packet.get_packet_type());
@@ -69,7 +86,15 @@ void MitsubishiUART::process_packet(const GetRequestPacket &packet) {
 
 void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-  route_packet_(packet);
+
+  float packet_temp = packet.get_target_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
+  if (packet_temp == corrected_temp) {
+    route_packet_(packet);
+  } else {
+    route_packet_(SettingsGetResponsePacket(packet).set_target_temperature(corrected_temp));
+  }
+
   alert_listeners_packet_(packet);
 
   // Mode
@@ -158,7 +183,15 @@ void MitsubishiUART::process_packet(const SettingsGetResponsePacket &packet) {
 
 void MitsubishiUART::process_packet(const CurrentTempGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-  route_packet_(packet);
+
+  float packet_temp = packet.get_current_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
+  if (packet_temp == corrected_temp) {
+    route_packet_(packet);
+  } else {
+    route_packet_(CurrentTempGetResponsePacket(packet).set_current_temperature(corrected_temp));
+  }
+
   alert_listeners_packet_(packet);
   // This will be the same as the remote temperature if we're using a remote sensor, otherwise the internal temp
   const float old_current_temperature = current_temperature;
@@ -246,11 +279,19 @@ void MitsubishiUART::process_packet(const Functions2GetResponsePacket &packet) {
 }
 
 void MitsubishiUART::process_packet(const SettingsSetRequestPacket &packet) {
-  ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
+  float packet_temp = packet.get_target_temp();
+  float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
 
-  // forward this packet as-is; we're just intercepting to log.
-  route_packet_(packet);
-  alert_listeners_packet_(packet);
+  if (packet_temp == corrected_temp) {
+    ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
+    route_packet_(packet);
+    alert_listeners_packet_(packet);
+  } else {
+    auto corrected_packet = SettingsSetRequestPacket(packet).set_target_temperature(corrected_temp);
+    ESP_LOGV(TAG, "Passing through temperature-corrected inbound %s", corrected_packet.to_string().c_str());
+    route_packet_(corrected_packet);
+    alert_listeners_packet_(corrected_packet);
+  }
 }
 
 void MitsubishiUART::process_packet(const RemoteTemperatureSetRequestPacket &packet) {
@@ -303,10 +344,16 @@ void MitsubishiUART::process_packet(const ThermostatStateUploadPacket &packet) {
 
   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
 
-  if (packet.get_flags() & 0x08)
-    this->mhk_state_.heat_setpoint_ = packet.get_heat_setpoint();
-  if (packet.get_flags() & 0x10)
-    this->mhk_state_.cool_setpoint_ = packet.get_cool_setpoint();
+  // In Fahrenheit correction mode, we store the actual temp in mhk_state_ and only alter it just in time to
+  // send/receive over the wire
+  if (packet.get_flags() & 0x08) {
+    this->mhk_state_.heat_setpoint_ =
+        mhk_f_correction_ ? mhk_temp_to_actual(packet.get_heat_setpoint()) : packet.get_heat_setpoint();
+  }
+  if (packet.get_flags() & 0x10) {
+    this->mhk_state_.cool_setpoint_ =
+        mhk_f_correction_ ? mhk_temp_to_actual(packet.get_cool_setpoint()) : packet.get_cool_setpoint();
+  }
 
   ts_bridge_->send_packet(SetResponsePacket());
 }
@@ -322,6 +369,19 @@ void MitsubishiUART::process_packet(const ThermostatAASetRequestPacket &packet) 
   ESP_LOGV(TAG, "Processing inbound %s", packet.to_string().c_str());
 
   ts_bridge_->send_packet(SetResponsePacket());
+}
+
+void MitsubishiUART::process_packet(const ZoneGetResponsePacket &packet) {
+  ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
+  alert_listeners_packet_(packet);
+}
+
+void MitsubishiUART::process_packet(const ZoneSetRequestPacket &packet) {
+  ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
+
+  // forward this packet as-is; we're just intercepting to log.
+  route_packet_(packet);
+  alert_listeners_packet_(packet);
 }
 
 void MitsubishiUART::process_packet(const SetResponsePacket &packet) {
@@ -349,8 +409,11 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 #endif
 
   response.set_auto_mode((mode == climate::CLIMATE_MODE_HEAT_COOL || mode == climate::CLIMATE_MODE_AUTO));
-  response.set_heat_setpoint(this->mhk_state_.heat_setpoint_);
-  response.set_cool_setpoint(this->mhk_state_.cool_setpoint_);
+  // We store the actual temp in mhk_state_ and only alter it just in time to send/receive over the wire
+  response.set_heat_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.heat_setpoint_)
+                                               : this->mhk_state_.heat_setpoint_);
+  response.set_cool_setpoint(mhk_f_correction_ ? mhk_temp_from_actual(this->mhk_state_.cool_setpoint_)
+                                               : this->mhk_state_.cool_setpoint_);
 
   ts_bridge_->send_packet(response);
 }
