@@ -9,7 +9,7 @@
 #include "esphome/components/climate/climate.h"
 #include "mitp_listener.h"
 #include "itp_packets.h"
-#include "mitp_mhk.h"
+#include "itp_mhk.h"
 #include "itp_heatpump.h"
 #include "itp_thermostat.h"
 #include <map>
@@ -29,6 +29,18 @@ inline const char *TEMPERATURE_SOURCE_INTERNAL = "Internal";
 inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
 const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
+
+class UARTComponentByteProvider : public ITPByteProvider {
+ public:
+  UARTComponentByteProvider(uart::UARTComponent &uart) : uart_(uart) {}
+  size_t available() override { return uart_.available(); }
+  bool read_array(uint8_t *data, size_t len) { return uart_.read_array(data, len); };
+  bool read_byte(uint8_t *data) { return uart_.read_byte(data); };
+  void write_array(const uint8_t *data, size_t len) { uart_.write_array(data, len); };
+
+ private:
+  uart::UARTComponent &uart_;
+};
 
 class MitsubishiUART : public PollingComponent, public climate::Climate, public ITPPacketReceiver {
  public:
@@ -154,8 +166,10 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // UARTComponent connected to heatpump
   uart::UARTComponent &hp_uart_;
+  UARTComponentByteProvider hp_uart_byte_;
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
+  UARTComponentByteProvider *ts_uart_byte_ = nullptr;
 
   ITPSystemState itp_sys_state_ = ITPSystemState();
   Heatpump heatpump_;
