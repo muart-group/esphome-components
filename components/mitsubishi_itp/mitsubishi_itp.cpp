@@ -8,7 +8,7 @@ namespace mitsubishi_itp {
 ////
 
 MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
-    : hp_uart_{*hp_uart_comp}, hp_uart_byte_(hp_uart_), heatpump_(&hp_uart_byte_, &itp_sys_state_) {
+    : hp_uart_{*hp_uart_comp}, hp_uart_byte_(hp_uart_comp), heatpump_(&hp_uart_byte_, &itp_sys_state_) {
   /**
    * Climate pushes all its data to Home Assistant immediately when the API connects, this causes
    * the default 0 to be sent as temperatures, but since this is a valid value (0 deg C), it
@@ -119,6 +119,7 @@ void MitsubishiUART::dump_config() {
 void MitsubishiUART::set_thermostat_uart(uart::UARTComponent *uart) {
   ESP_LOGCONFIG(TAG, "Thermostat uart was set.");
   ts_uart_ = uart;
+  ts_uart_byte_ = UARTComponentByteProvider(uart);
   thermostat_ = make_unique<Thermostat>(&ts_uart_byte_, &heatpump_, &itp_sys_state_);
 
   thermostat_->intercept_remote_temperatures(true);  // MITP will be handling all remote temperatures
@@ -178,6 +179,8 @@ bool MitsubishiUART::select_temperature_source(const std::string &state) {
 void MitsubishiUART::temperature_source_report(const std::string &temperature_source, const float &v) {
   ESP_LOGI(TAG, "Received temperature from %s of %f. (Current source: %s)", temperature_source.c_str(), v,
            selected_temperature_source_.c_str());
+
+  ESP_LOGD(TAG, "Connected %i", itp_sys_state_.is_connected());
 
   if (isnan(v) || v >= 63.5 || v <= -64.0) {
     ESP_LOGW(TAG, "Temperature %f from %s is out of range and will be ignored.", v, temperature_source.c_str());
