@@ -119,8 +119,7 @@ void MitsubishiUART::dump_config() {
 void MitsubishiUART::set_thermostat_uart(uart::UARTComponent *uart) {
   ESP_LOGCONFIG(TAG, "Thermostat uart was set.");
   ts_uart_ = uart;
-  ts_uart_byte_ = &UARTComponentByteProvider(*ts_uart_);
-  thermostat_ = make_unique<Thermostat>(ts_uart_byte_, &heatpump_, &itp_sys_state_);
+  thermostat_ = make_unique<Thermostat>(&ts_uart_byte_, &heatpump_, &itp_sys_state_);
 
   thermostat_->intercept_remote_temperatures(true);  // MITP will be handling all remote temperatures
 }

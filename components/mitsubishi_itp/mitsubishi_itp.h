@@ -169,7 +169,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   UARTComponentByteProvider hp_uart_byte_;
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
-  UARTComponentByteProvider *ts_uart_byte_ = nullptr;
+  UARTComponentByteProvider ts_uart_byte_ = UARTComponentByteProvider(*ts_uart_);
 
   ITPSystemState itp_sys_state_ = ITPSystemState();
   Heatpump heatpump_;
