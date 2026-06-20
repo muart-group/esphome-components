@@ -195,8 +195,6 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
   ESP_LOGI(TAG, "Received temperature from %s of %f. (Current source: %s)", temperature_source.c_str(), v,
            selected_temperature_source_.c_str());
 
-  ESP_LOGD(TAG, "Connected %i", itp_sys_state_.is_connected());
-
   if (isnan(v) || v >= 63.5 || v <= -64.0) {
     ESP_LOGW(TAG, "Temperature %f from %s is out of range and will be ignored.", v, temperature_source.c_str());
     return;

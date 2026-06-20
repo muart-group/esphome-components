@@ -51,9 +51,6 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
     switch (call.get_mode().value()) {
       case climate::CLIMATE_MODE_HEAT_COOL:
-        if (thermostat_) {
-          thermostat_->set_auto_mode(0x01);  // 0x01 for now (is 0x02 the other of heat vs cool?)
-        }
         if (current_temperature > target_temperature_low) {
           cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_COOL);
         } else {
@@ -76,6 +73,17 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
       default:
         cmd.power(false);
         break;
+    }
+
+    // Tell thermostat if we're in auto mode or not
+    if (mode == climate::CLIMATE_MODE_HEAT_COOL) {
+      if (thermostat_) {
+        thermostat_->set_auto_mode(0x01);  // 0x01 for now (is 0x02 the other of heat vs cool?)
+      }
+    } else {
+      if (thermostat_) {
+        thermostat_->set_auto_mode(0x00);  // 0x01 for now (is 0x02 the other of heat vs cool?)
+      }
     }
   }
 
