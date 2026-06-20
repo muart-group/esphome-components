@@ -29,7 +29,7 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
 
 // This value should be changed if the structure of the preferences object changes
 // to invalidate previously stored preferences.
-const uint MITP_PREFERENCE_VERSION = 1;
+const uint MITP_PREFERENCE_VERSION = 2;
 
 // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
@@ -57,21 +57,30 @@ void MitsubishiUART::setup() {
 void MitsubishiUART::restore_preferences_() {
   MITPPreferences prefs;
   if (preferences_.load(&prefs)) {
-    for (auto i = 0; i < MAX_RECALL_MODE_INDEX; i++) {
-      if (prefs.modeRecallSetpoints[i] > 0) {
-        // If any setpoints are set, assume valid preferences and load all of them
-        mode_recall_setpoints_ = prefs.modeRecallSetpoints;
-        ESP_LOGCONFIG(TAG, "Loaded mode recall setpoints.");
-        // TODO: Shouldn't we just set the low and high setpoints here? Are there low and high for each mode now?
-        break;
+    if (!std::isnan(prefs.last_cool_setpoint)) {
+      target_temperature_high = prefs.last_cool_setpoint;
+      if (thermostat_) {
+        thermostat_->set_cooldry_setpoint(target_temperature_high);
       }
     }
+
+    if (!std::isnan(prefs.last_heat_setpoint)) {
+      target_temperature_low = prefs.last_heat_setpoint;
+      if (thermostat_) {
+        thermostat_->set_heat_setpoint(target_temperature_low);
+      }
+    }
+
+    ESP_LOGCONFIG(TAG, "Loaded previous setpoints. Low:%f High:%f", target_temperature_low, target_temperature_high);
+
+    do_publish_();  // Publish right away so HA shows temperatures
   }
 }
 
 void MitsubishiUART::save_preferences_() {
   MITPPreferences prefs{};
-  prefs.modeRecallSetpoints = mode_recall_setpoints_;
+  prefs.last_cool_setpoint = target_temperature_high;
+  prefs.last_heat_setpoint = target_temperature_low;
   preferences_.save(&prefs);
 }
 

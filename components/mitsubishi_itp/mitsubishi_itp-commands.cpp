@@ -80,71 +80,44 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
   }
 
   // Target Temperature
-  // TODO: This is a bit messy-- we need to support climate calls that don't contain a new target high/low temperature,
-  // so we have to look them up from the previous temp. Seems like maybe this should be stored a little more robustly
-  // (like a specific high/low cool/heat instead of in the mode array), but does that differ from the thermostat's
-  // high/low? If there's no thermostat we need to store it somewhere, should we just load low/high setpoints from
-  // memory directly rather than recalling them here?
+
+  // First set the low/high target temperatures
 
   if (call.get_target_temperature_low().has_value()) {
     target_temperature_low = call.get_target_temperature_low().value();
     if (thermostat_) {
       thermostat_->set_heat_setpoint(target_temperature_low);
     }
-
-    // If we're in HEAT or auto-HEAT, set as target
-    if (mode == climate::CLIMATE_MODE_HEAT ||
-        (mode == climate::CLIMATE_MODE_HEAT_COOL && current_temperature <= target_temperature_low)) {
-      ESP_LOGD(TAG, "Setting target temp to %f, mode is %i", target_temperature_low, mode);
-      cmd.target_temperature_degC(target_temperature_low);
-    }
-  } else if (call.get_mode().has_value() &&
-             (mode == climate::CLIMATE_MODE_HEAT ||
-              (mode == climate::CLIMATE_MODE_HEAT_COOL && current_temperature <= target_temperature_low))) {
-    // If we didn't get a new target temp, but we did get a mode, use the last known target temp:
-    auto previous_target = mode_recall_setpoints_[call.get_mode().value()];
-    if (previous_target > 0.0f) {
-      ESP_LOGD(TAG, "Loading previous target temp %f", previous_target);
-      target_temperature_low = previous_target;
-      cmd.target_temperature_degC(target_temperature_low);
-    }
   }
 
   if (call.get_target_temperature_high().has_value()) {
     target_temperature_high = call.get_target_temperature_high().value();
-
     if (thermostat_) {
       thermostat_->set_cooldry_setpoint(target_temperature_high);
     }
-
-    // If we're in COOL or auto-COOL, set as target
-    if (mode == climate::CLIMATE_MODE_COOL ||
-        (mode == climate::CLIMATE_MODE_HEAT_COOL && current_temperature > target_temperature_high)) {
-      ESP_LOGD(TAG, "Setting target temp to %f, mode is %i", target_temperature_high, mode);
-      cmd.target_temperature_degC(target_temperature_high);
-    }
-  } else if (call.get_mode().has_value() &&
-             (mode == climate::CLIMATE_MODE_COOL ||
-              (mode == climate::CLIMATE_MODE_HEAT_COOL && current_temperature > target_temperature_high))) {
-    // If we didn't get a new target temp, but we did get a mode, use the last known target temp:
-    auto previous_target = mode_recall_setpoints_[call.get_mode().value()];
-    if (previous_target > 0.0f) {
-      ESP_LOGD(TAG, "Loading previous target temp %f", previous_target);
-      target_temperature_high = previous_target;
-      cmd.target_temperature_degC(target_temperature_high);
-    }
   }
 
-  // TODO: Maybe fix this?
-  // } else if (call.get_mode().has_value()) {
-  //   // If we didn't get a new target temp, but we did get a mode, use the last known target temp:
-  //   auto previous_target = mode_recall_setpoints_[call.get_mode().value()];
-  //   if (previous_target > 0.0f) {
-  //     ESP_LOGD(TAG, "Loading previous target temp %f", previous_target);
-  //     target_temperature = previous_target;
-  //     cmd.target_temperature_degC(target_temperature);
-  //   }
-  // }
+  // Based on our mode (just updated above), set the target temperature on the heatpump
+
+  switch (mode) {
+    case climate::CLIMATE_MODE_COOL:
+    case climate::CLIMATE_MODE_DRY:
+      cmd.target_temperature_degC(target_temperature_high);
+      break;
+    case climate::CLIMATE_MODE_HEAT:
+      cmd.target_temperature_degC(target_temperature_low);
+      break;
+    case climate::CLIMATE_MODE_HEAT_COOL:
+      if (current_temperature <= target_temperature_low) {
+        cmd.target_temperature_degC(target_temperature_low);
+      } else {
+        cmd.target_temperature_degC(target_temperature_high);
+      }
+      break;
+    default:
+      // Other modes don't use target temperature, just leave it where it was
+      break;
+  }
 
   // We're assuming that every climate call *does* make some change worth sending to the heat pump
   heatpump_.send_command(cmd);

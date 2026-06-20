@@ -29,8 +29,6 @@ const float MITP_TEMPERATURE_STEP = 0.5;
 inline const char *TEMPERATURE_SOURCE_INTERNAL = "Internal";
 inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
-const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
-
 class UARTComponentByteProvider : public ITPByteProvider {
  public:
   UARTComponentByteProvider(uart::UARTComponent *uart) : uart_(uart) {}
@@ -122,9 +120,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
     }
   }
 
-  // Enables the recall setpoint feature
-  void set_recall_setpoint(const bool enabled) { recall_setpoint_ = enabled; }
-
   // Returns a tm struct with the current date and time (for Thermostat sync)
   tm get_timestruct();
 
@@ -214,11 +209,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   uint32_t temperature_source_echo_ms_ = 0;              // 0 = off by default
   uint32_t temperature_source_echo_last_timestamp_ = 0;  // Timestamp of last sent temperature
 
-  // If enabled, switching modes will recall target mode's previous setpoint
-  bool recall_setpoint_ = false;
-  // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_ = {0.0f};
-
   // Preferences
   void save_preferences_();
   void restore_preferences_();
@@ -226,8 +216,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 };
 
 struct MITPPreferences {
-  // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints = {0.0f};
+  float last_cool_setpoint = NAN;
+  float last_heat_setpoint = NAN;
 };
 
 }  // namespace mitsubishi_itp

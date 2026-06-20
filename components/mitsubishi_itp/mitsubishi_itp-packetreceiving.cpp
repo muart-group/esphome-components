@@ -87,7 +87,6 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
       if (target_temperature_high != packet_temp) {
         target_temperature_high = packet_temp;
         publish_on_update_ = true;
-        mode_recall_setpoints_[mode] = target_temperature_high;
       }
       break;
     case 0x01:  // Heat
@@ -96,16 +95,10 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
       if (target_temperature_low != packet_temp) {
         target_temperature_low = packet_temp;
         publish_on_update_ = true;
-        mode_recall_setpoints_[mode] = target_temperature_low;
       }
       break;
     case 0x07:  // Fan
-      if (target_temperature != packet_temp) {
-        target_temperature = packet_temp;  // TODO: This should store both setpoints somehow, I think...
-        publish_on_update_ = true;
-        mode_recall_setpoints_[mode] = target_temperature;
-      }
-      break;
+                // Do nothing, setpoint for fan isn't really valid/tracked
     case 0x08:  // Auto
       // Do nothing, this mode is fleeting
       break;
