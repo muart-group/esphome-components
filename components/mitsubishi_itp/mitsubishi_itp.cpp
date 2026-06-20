@@ -18,6 +18,11 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
   target_temperature = NAN;
   current_temperature = NAN;
 
+  // We do support this!
+  climate_traits_.add_feature_flags(climate::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE);
+
+  target_temperature_high = 28.0;
+
   // Register to receive heatpump and thermostat packets
   itp_sys_state_.register_receiver(this);
 }
@@ -57,6 +62,7 @@ void MitsubishiUART::restore_preferences_() {
         // If any setpoints are set, assume valid preferences and load all of them
         mode_recall_setpoints_ = prefs.modeRecallSetpoints;
         ESP_LOGCONFIG(TAG, "Loaded mode recall setpoints.");
+        // TODO: Shouldn't we just set the low and high setpoints here? Are there low and high for each mode now?
         break;
       }
     }

@@ -144,6 +144,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Thermostat
   void receive_packet(const RemoteTemperatureSetRequestPacket &packet) override;
+  void receive_packet(const ThermostatStateUploadPacket &packet) override;
 
   // Publishes climate state
   void do_publish_();

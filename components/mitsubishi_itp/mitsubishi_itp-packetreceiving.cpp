@@ -36,16 +36,18 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
 
   float packet_temp = packet.get_target_temp();
-  // TODO: Re-implement temperature correction
 
   // Mode
-
   const climate::ClimateMode old_mode = mode;
   if (packet.get_power()) {
     switch (packet.get_mode()) {
       case 0x01:
       case 0x09:  // i-see
-        mode = climate::CLIMATE_MODE_HEAT;
+      case 0x21:  // unsure when 0x21 or 0x23 would ever be sent, as they seem to be Kumo exclusive, but let's handle
+                  // them anyways.
+        if (mode != climate::CLIMATE_MODE_HEAT_COOL) {
+          mode = climate::CLIMATE_MODE_HEAT;
+        }
         break;
       case 0x02:
       case 0x0A:  // i-see
@@ -53,15 +55,17 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
         break;
       case 0x03:
       case 0x0B:  // i-see
-        mode = climate::CLIMATE_MODE_COOL;
+      case 0x32:  // unsure when 0x21 or 0x23 would ever be sent, as they seem to be Kumo exclusive, but let's handle
+                  // them anyways.
+        if (mode != climate::CLIMATE_MODE_HEAT_COOL) {
+          mode = climate::CLIMATE_MODE_COOL;
+        }
         break;
       case 0x07:
         mode = climate::CLIMATE_MODE_FAN_ONLY;
         break;
-      case 0x08:
-      // unsure when 0x21 or 0x23 would ever be sent, as they seem to be Kumo exclusive, but let's handle them anyways.
-      case 0x21:
-      case 0x23:
+      case 0x08:  // Auto
+        // Override built-in auto with HEAT_COOL
         mode = climate::CLIMATE_MODE_HEAT_COOL;
         break;
       default:
@@ -74,29 +78,40 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
   publish_on_update_ |= (old_mode != mode);
 
   // Temperature
-  const float old_target_temperature = target_temperature;
-  target_temperature = packet.get_target_temp();
-  publish_on_update_ |= (old_target_temperature != target_temperature);
-  if (mode <= MAX_RECALL_MODE_INDEX) {
-    mode_recall_setpoints_[mode] = target_temperature;
+  switch (packet.get_mode()) {
+    case 0x02:  // Dry
+    case 0x0A:  // i-See Dry
+    case 0x03:  // Cool
+    case 0x0B:  // i-See Cool
+    case 0x23:  // Auto-Cool (not sure this will ever be returned outside Kumo)
+      if (target_temperature_high != packet_temp) {
+        target_temperature_high = packet_temp;
+        publish_on_update_ = true;
+        mode_recall_setpoints_[mode] = target_temperature_high;
+      }
+      break;
+    case 0x01:  // Heat
+    case 0x09:  // i-See Heat
+    case 0x21:  // Auto-Heat (not sure this will ever be returned outside Kumo)
+      if (target_temperature_low != packet_temp) {
+        target_temperature_low = packet_temp;
+        publish_on_update_ = true;
+        mode_recall_setpoints_[mode] = target_temperature_low;
+      }
+      break;
+    case 0x07:  // Fan
+      if (target_temperature != packet_temp) {
+        target_temperature = packet_temp;  // TODO: This should store both setpoints somehow, I think...
+        publish_on_update_ = true;
+        mode_recall_setpoints_[mode] = target_temperature;
+      }
+      break;
+    case 0x08:  // Auto
+      // Do nothing, this mode is fleeting
+      break;
+    default:
+      break;
   }
-
-  // TODO: mhk_state
-
-  // switch (mode) {
-  //   case climate::CLIMATE_MODE_COOL:
-  //   case climate::CLIMATE_MODE_DRY:
-  //     this->mhk_state_.cool_setpoint_ = target_temperature;
-  //     break;
-  //   case climate::CLIMATE_MODE_HEAT:
-  //     this->mhk_state_.heat_setpoint_ = target_temperature;
-  //     break;
-  //   case climate::CLIMATE_MODE_HEAT_COOL:
-  //     this->mhk_state_.cool_setpoint_ = target_temperature + 2;
-  //     this->mhk_state_.heat_setpoint_ = target_temperature - 2;
-  //   default:
-  //     break;
-  // }
 
   // Fan
   bool fan_changed = false;
@@ -134,6 +149,24 @@ void MitsubishiUART::receive_packet(const CurrentTempGetResponsePacket &packet) 
   current_temperature = packet.get_current_temp();
 
   publish_on_update_ |= (old_current_temperature != current_temperature);
+
+  // Use the presense of ThermostatStateUploadPacket as a proxy for an auto-capable thermostat being attached
+  if (mode == climate::CLIMATE_MODE_HEAT_COOL &&
+      !itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() < 900000) {
+    if (itp_sys_state_.is_heatpump_on_heat() && current_temperature >= target_temperature_high) {
+      // If we're on heat, but the temperature has hit the high-setpoint, switch to COOL
+      ClimateCommand cmd = ClimateCommand();
+      cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
+          .target_temperature_degC(target_temperature_high);
+      heatpump_.send_command(cmd);
+    } else if (itp_sys_state_.is_heatpump_on_cool() && current_temperature <= target_temperature_low) {
+      // If we're on cool, but the temperature has hit the low-setpoint, switch to HEAT
+      ClimateCommand cmd = ClimateCommand();
+      cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
+          .target_temperature_degC(target_temperature_low);
+      heatpump_.send_command(cmd);
+    }
+  }
 }
 
 void MitsubishiUART::receive_packet(const StatusGetResponsePacket &packet) {
@@ -161,17 +194,15 @@ void MitsubishiUART::receive_packet(const StatusGetResponsePacket &packet) {
       case climate::CLIMATE_MODE_DRY:
         action = climate::CLIMATE_ACTION_DRYING;
         break;
-      // TODO: This only works if we get an update while the temps are in this configuration
-      // Surely there's some info from the heat pump about which of these modes it's in?
       case climate::CLIMATE_MODE_HEAT_COOL:
-        if (current_temperature > target_temperature) {
+        if (itp_sys_state_.is_heatpump_on_cool()) {
           action = climate::CLIMATE_ACTION_COOLING;
-        } else if (current_temperature < target_temperature) {
+        } else if (itp_sys_state_.is_heatpump_on_heat()) {
           action = climate::CLIMATE_ACTION_HEATING;
         }
-        // When the heat pump *changes* to a new action, these temperature comparisons should be accurate.
-        // If the mode hasn't changed, but the temps are equal, we can assume the same action and make no change.
-        // If the unit overshoots, this still doesn't work.
+        // This is a little wishy-washy because we have to assume that a GetSettingsResponse was cached
+        // just before this to ensure the heat pump's state is correctly known, but it should either happen that way
+        // or will be corrected within one update cycle
         break;
       default:
         ESP_LOGW(TAG, "Unhandled mode %i.", mode);
@@ -217,6 +248,54 @@ void MitsubishiUART::receive_packet(const RemoteTemperatureSetRequestPacket &pac
   if (!packet.get_use_internal_temperature()) {
     float t = packet.get_remote_temperature();
     temperature_source_report(TEMPERATURE_SOURCE_THERMOSTAT, t);
+  }
+}
+
+void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
+  if (packet.get_flags() & 0x08) {
+    if (packet.get_auto_mode() > 0x00) {
+      mode = climate::CLIMATE_MODE_HEAT_COOL;
+      publish_on_update_ = true;
+    } else {
+      if (itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>()) {
+        SettingsGetResponsePacket last_settings = *itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>();
+        switch (last_settings.get_mode()) {
+          case 0x02:  // Dry
+          case 0x0A:  // i-See Dry
+            mode = climate::CLIMATE_MODE_DRY;
+            break;
+          case 0x03:  // Cool
+          case 0x0B:  // i-See Cool
+          case 0x23:  // Auto-Cool (not sure this will ever be returned outside Kumo)
+            mode = climate::CLIMATE_MODE_COOL;
+            break;
+          case 0x01:  // Heat
+          case 0x09:  // i-See Heat
+          case 0x21:  // Auto-Heat (not sure this will ever be returned outside Kumo)
+            mode = climate::CLIMATE_MODE_HEAT;
+            break;
+          case 0x07:  // Fan
+            mode = climate::CLIMATE_MODE_FAN_ONLY;
+            break;
+          case 0x08:  // Auto
+            // Do nothing, this mode is fleeting
+            break;
+          default:
+            mode = climate::CLIMATE_MODE_OFF;
+            break;
+        }
+      }
+    }
+  }
+  if (packet.get_flags() & 0x08) {
+    target_temperature_low = thermostat_->mhk_fahrenheit_correction_is_on()
+                                 ? mhk_temp_to_actual(packet.get_heat_setpoint())
+                                 : packet.get_heat_setpoint();
+  }
+  if (packet.get_flags() & 0x10) {
+    target_temperature_high = thermostat_->mhk_fahrenheit_correction_is_on()
+                                  ? mhk_temp_to_actual(packet.get_cool_setpoint())
+                                  : packet.get_cool_setpoint();
   }
 }
 
