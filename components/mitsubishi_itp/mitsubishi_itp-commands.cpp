@@ -89,9 +89,14 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
 
   // Target Temperature
 
-  // First set the low/high target temperatures
+  // Home Assistant tends to send both low and high targets even if only one has changed, so we need to track which
+  // changed to bump the other if they're too close
+  bool low_changed = false;
+  bool high_changed = false;
 
+  // Set the low/high target temperatures
   if (call.get_target_temperature_low().has_value()) {
+    low_changed = call.get_target_temperature_low().value() != target_temperature_low;
     target_temperature_low = call.get_target_temperature_low().value();
     if (thermostat_) {
       thermostat_->set_heat_setpoint(target_temperature_low);
@@ -99,9 +104,21 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
   }
 
   if (call.get_target_temperature_high().has_value()) {
+    high_changed = call.get_target_temperature_high().value() != target_temperature_high;
     target_temperature_high = call.get_target_temperature_high().value();
     if (thermostat_) {
       thermostat_->set_cooldry_setpoint(target_temperature_high);
+    }
+  }
+
+  if (target_temperature_high - target_temperature_low < 2) {
+    ITP_LOGW(TAG, "Target temperatures must be at least 2°C apart!");
+    if (high_changed) {
+      target_temperature_low = target_temperature_high - 2;
+    } else {
+      // In the event that they *both* changed, we'll still just bump the high temperature because trying to take the
+      // mean or something might be weird.
+      target_temperature_high = target_temperature_low + 2;
     }
   }
 
