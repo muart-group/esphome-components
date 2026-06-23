@@ -98,7 +98,7 @@ class MITPUtils {
     result >>= (sizeof(uint64_t) * 8) + (start_byte * 8) - end - 1;
 
     // mask out the number of bits we want
-    result &= (1 << (end - start + 1)) - 1;
+    result &= (1ULL << (end - start + 1)) - 1;
 
     return result;
   }
