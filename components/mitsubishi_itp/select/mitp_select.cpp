@@ -3,7 +3,7 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-void VanePositionSelect::process_packet(const SettingsGetResponsePacket &packet) {
+void VanePositionSelect::receive_packet(const SettingsGetResponsePacket &packet) {
   switch (packet.get_vane()) {
     case SettingsSetRequestPacket::VANE_AUTO:
       mitp_select_value_ = std::string("Auto");
@@ -31,7 +31,7 @@ void VanePositionSelect::process_packet(const SettingsGetResponsePacket &packet)
   }
 }
 
-void HorizontalVanePositionSelect::process_packet(const SettingsGetResponsePacket &packet) {
+void HorizontalVanePositionSelect::receive_packet(const SettingsGetResponsePacket &packet) {
   switch (packet.get_horizontal_vane()) {
     case SettingsSetRequestPacket::HV_AUTO:
       mitp_select_value_ = std::string("Auto");

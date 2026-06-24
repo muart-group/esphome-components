@@ -13,9 +13,7 @@ class MITPZoneSwitch : public switch_::Switch, public Parented<MitsubishiUART>, 
 
   void set_zone_number(uint8_t zone) { zone_ = zone; }
 
-  void process_packet(const ZoneGetResponsePacket &packet) override {
-    zone_state_ = packet.get_zone_active(zone_);
-  }
+  void receive_packet(const ZoneGetResponsePacket &packet) override { zone_state_ = packet.get_zone_active(zone_); }
 
   void publish() override {
     if (zone_state_.has_value() && zone_state_.value() != state) {

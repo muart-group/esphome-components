@@ -23,17 +23,17 @@ class MITPTextSensor : public MITPListener, public text_sensor::TextSensor {
 };
 
 class ActualFanSensor : public MITPTextSensor {
-  void process_packet(const RunStateGetResponsePacket &packet) override {
+  void receive_packet(const RunStateGetResponsePacket &packet) override {
     mitp_text_sensor_state_ = ACTUAL_FAN_SPEED_NAMES[packet.get_actual_fan_speed()];
   }
 };
 
 class ErrorCodeSensor : public MITPTextSensor {
-  void process_packet(const ErrorStateGetResponsePacket &packet) override;
+  void receive_packet(const ErrorStateGetResponsePacket &packet) override;
 };
 
 class ThermostatBatterySensor : public MITPTextSensor {
-  void process_packet(const ThermostatSensorStatusPacket &packet) override;
+  void receive_packet(const ThermostatSensorStatusPacket &packet) override;
 };
 
 }  // namespace mitsubishi_itp

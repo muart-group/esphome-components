@@ -23,7 +23,6 @@ CONF_ENHANCED_MHK_SUPPORT = (
     "enhanced_mhk"  # EXPERIMENTAL. Will be set to default eventually.
 )
 CONF_MHK_F_CORRECTION = "mhk_fahrenheit_correction"
-CONF_RECALL_SETPOINT = "recall_setpoint"
 
 DEFAULT_POLLING_INTERVAL = "5s"
 
@@ -52,7 +51,6 @@ CONFIG_SCHEMA = (
             ),
             cv.Optional(CONF_ENHANCED_MHK_SUPPORT, default=False): cv.boolean,
             cv.Optional(CONF_MHK_F_CORRECTION, default=False): cv.boolean,
-            cv.Optional(CONF_RECALL_SETPOINT, default=False): cv.boolean,
         }
     )
     .extend(cv.polling_component_schema(DEFAULT_POLLING_INTERVAL))
@@ -120,7 +118,7 @@ async def to_code(config):
         cg.add(traits.set_supported_fan_modes(config[CONF_SUPPORTED_FAN_MODES]))
 
     if CONF_CUSTOM_FAN_MODES in config and len(config[CONF_CUSTOM_FAN_MODES]) > 0:
-        cg.add(traits.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
+        cg.add(mitp_component.set_supported_custom_fan_modes(config[CONF_CUSTOM_FAN_MODES]))
 
     # Debug Settings
     if enhanced_mhk_protocol := config.get(CONF_ENHANCED_MHK_SUPPORT):
@@ -129,14 +127,12 @@ async def to_code(config):
         )
     if mhk_f_correction := config.get(CONF_MHK_F_CORRECTION):
         cg.add(getattr(mitp_component, "set_mhk_f_correction")(mhk_f_correction))
-    if rs_conf := config.get(CONF_RECALL_SETPOINT):
-        cg.add(getattr(mitp_component, "set_recall_setpoint")(rs_conf))
 
     try:
         cg.add_library(
             name="itp-packet",
             repository="https://github.com/muart-group/itp-packet.git",
-            version="v1", # Follow the latest v1 release
+            version="v2",
         )
     except ValueError as e:
         # If a library is manually defined in the ESPHome config it will "conflict"

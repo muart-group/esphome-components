@@ -9,9 +9,10 @@
 #include "esphome/components/climate/climate.h"
 #include "mitp_listener.h"
 #include "itp_packets.h"
-#include "itp_packetprocessor.h"
-#include "mitp_bridge.h"
-#include "mitp_mhk.h"
+#include "itp_mhk.h"
+#include "itp_heatpump.h"
+#include "itp_thermostat.h"
+#include "esphome/core/log.h"
 #include <map>
 
 using namespace itp_packet;
@@ -28,9 +29,22 @@ const float MITP_TEMPERATURE_STEP = 0.5;
 inline const char *TEMPERATURE_SOURCE_INTERNAL = "Internal";
 inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
 
-const auto MAX_RECALL_MODE_INDEX = climate::ClimateMode::CLIMATE_MODE_DRY;
+class UARTComponentByteProvider : public ITPByteProvider {
+ public:
+  UARTComponentByteProvider(uart::UARTComponent *uart) : uart_(uart) {}
+  size_t available() override { return uart_ ? uart_->available() : 0; }
+  bool read_array(uint8_t *data, size_t len) override { return uart_ ? uart_->read_array(data, len) : false; };
+  bool read_byte(uint8_t *data) override { return uart_ ? uart_->read_byte(data) : false; };
+  void write_array(const uint8_t *data, size_t len) override {
+    if (uart_)
+      uart_->write_array(data, len);
+  };
 
-class MitsubishiUART : public PollingComponent, public climate::Climate, public PacketProcessor {
+ private:
+  uart::UARTComponent *uart_;
+};
+
+class MitsubishiUART : public PollingComponent, public climate::Climate, public ITPPacketReceiver {
  public:
   /**
    * Create a new MitsubishiUART with the specified esphome::uart::UARTComponent.
@@ -64,8 +78,11 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   // Set thermostat UART component
   void set_thermostat_uart(uart::UARTComponent *uart);
 
-  // Listener-sensors
-  void register_listener(MITPListener *listener) { this->listeners_.push_back(listener); }
+  // Register listener sensors with MITP for logic events, and ITPSystemState for ITP packets
+  void register_listener(MITPListener *listener) {
+    this->listeners_.push_back(listener);
+    this->itp_sys_state_.register_receiver(listener);
+  }
 
   // Temperature Source config
   void set_temperature_source_timeout_ms(const uint32_t timeout) { this->temperature_source_timeout_ms_ = timeout; }
@@ -87,51 +104,44 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Zone control
   bool set_zone_active(uint8_t zone, bool active);
-  void set_zones_enabled(bool enabled) { zones_enabled_ = enabled; }
+  void set_zones_enabled(bool enabled) { heatpump_.enable_zones(enabled); }
 
   // Turns on or off Kumo emulation mode
-  void set_enhanced_mhk_support(const bool supports) { enhanced_mhk_support_ = supports; }
+  void set_enhanced_mhk_support(const bool supports) {
+    if (thermostat_) {
+      thermostat_->enchanced_mhk(supports);
+    }
+  }
 
   // Turns on or off MHK Fahrenheit conversion correction
-  void set_mhk_f_correction(const bool enabled) { mhk_f_correction_ = enabled; }
+  void set_mhk_f_correction(const bool enabled) {
+    if (thermostat_) {
+      thermostat_->mhk_fahrenheit_correction(enabled);
+    }
+  }
 
-  // Enables the recall setpoint feature
-  void set_recall_setpoint(const bool enabled) { recall_setpoint_ = enabled; }
+  // Returns a tm struct with the current date and time (for Thermostat sync)
+  tm get_timestruct();
 
 #ifdef USE_TIME
   void set_time_source(time::RealTimeClock *rtc) { time_source_ = rtc; }
 #endif
 
  protected:
-  void route_packet_(const Packet &packet);
   float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
 
-  void process_packet(const Packet &packet) override;
-  void process_packet(const ConnectRequestPacket &packet) override;
-  void process_packet(const ConnectResponsePacket &packet) override;
-  void process_packet(const CapabilitiesRequestPacket &packet) override;
-  void process_packet(const CapabilitiesResponsePacket &packet) override;
-  void process_packet(const GetRequestPacket &packet) override;
-  void process_packet(const SettingsGetResponsePacket &packet) override;
-  void process_packet(const CurrentTempGetResponsePacket &packet) override;
-  void process_packet(const StatusGetResponsePacket &packet) override;
-  void process_packet(const RunStateGetResponsePacket &packet) override;
-  void process_packet(const ErrorStateGetResponsePacket &packet) override;
-  void process_packet(const Functions1GetResponsePacket &packet) override;
-  void process_packet(const Functions2GetResponsePacket &packet) override;
-  void process_packet(const SettingsSetRequestPacket &packet) override;
-  void process_packet(const RemoteTemperatureSetRequestPacket &packet) override;
-  void process_packet(const ThermostatSensorStatusPacket &packet) override;
-  void process_packet(const ThermostatHelloPacket &packet) override;
-  void process_packet(const ThermostatStateUploadPacket &packet) override;
-  void process_packet(const ThermostatAASetRequestPacket &packet) override;
-  void process_packet(const ZoneGetResponsePacket &packet) override;
-  void process_packet(const ZoneSetRequestPacket &packet) override;
-  void process_packet(const SetResponsePacket &packet) override;
+  void receive_packet(const Packet &packet) override;
+  // Heatpump
+  void receive_packet(const CapabilitiesResponsePacket &packet) override;
+  void receive_packet(const CurrentTempGetResponsePacket &packet) override;
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
+  void receive_packet(const StatusGetResponsePacket &packet) override;
 
-  void handle_thermostat_state_download_request(const GetRequestPacket &packet) override;
-  void handle_thermostat_ab_get_request(const GetRequestPacket &packet) override;
+  // Thermostat
+  void receive_packet(const RemoteTemperatureSetRequestPacket &packet) override;
+  void receive_packet(const ThermostatStateUploadPacket &packet) override;
 
+  // Publishes climate state
   void do_publish_();
 
  private:
@@ -149,27 +159,24 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   }();
 
   // UARTComponent connected to heatpump
-  const uart::UARTComponent &hp_uart_;
-  // UART packet wrapper for heatpump
-  HeatpumpBridge hp_bridge_;
+  uart::UARTComponent &hp_uart_;
+  // Heatpump UART wrapper for ITP library
+  UARTComponentByteProvider hp_uart_byte_;
+
   // UARTComponent connected to thermostat
   uart::UARTComponent *ts_uart_ = nullptr;
-  // UART packet wrapper for heatpump
-  std::unique_ptr<ThermostatBridge> ts_bridge_ = nullptr;
+  // Thermostat UART wrapper for ITP library
+  UARTComponentByteProvider ts_uart_byte_{nullptr};
 
-  // Are we connected to the heatpump?
-  bool hp_connected_ = false;
+  // Stores latest receives packets from ITP hardware
+  ITPSystemState itp_sys_state_ = ITPSystemState();
+
+  // ITP Heatpump/Thermostat
+  Heatpump heatpump_;
+  std::unique_ptr<Thermostat> thermostat_ = nullptr;
+
   // Should we call publish on the next update?
   bool publish_on_update_ = false;
-  // Are we still discovering information about the device?
-  bool in_discovery_ = true;
-  // Number of times update() has been called in discovery mode
-  size_t discovery_updates_ = 0;
-
-  optional<CapabilitiesResponsePacket> capabilities_cache_;
-  bool capabilities_requested_ = false;
-  // Have we received at least one RunState response?
-  bool run_state_received_ = false;
 
 // Time Source
 #ifdef USE_TIME
@@ -179,11 +186,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 
   // Listener-sensors
   std::vector<MITPListener *> listeners_{};
-  template<typename T> void alert_listeners_packet_(const T &packet) const {
-    for (auto *listener : this->listeners_) {
-      listener->process_packet(packet);
-    }
-  }
+
+  // Alerts listeners that we've switched to internal temperature
   void alert_listeners_internal_temp_(const bool using_internal) const {
     for (auto *listener : this->listeners_) {
       listener->using_internal_temperature(using_internal);
@@ -205,22 +209,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
   uint32_t temperature_source_echo_ms_ = 0;              // 0 = off by default
   uint32_t temperature_source_echo_last_timestamp_ = 0;  // Timestamp of last sent temperature
 
-  // used to track whether to support/handle the enhanced MHK protocol packets
-  bool enhanced_mhk_support_ = false;
-
-  // Used to decide whether to alter temperatures when communicating with the MHK to correct fahrenheit values
-  bool mhk_f_correction_ = false;
-
-  // set to true when at least one zone switch is registered
-  bool zones_enabled_ = false;
-
-  // If enabled, switching modes will recall target mode's previous setpoint
-  bool recall_setpoint_ = false;
-  // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> mode_recall_setpoints_ = {0.0f};
-
-  MHKState mhk_state_;
-
   // Preferences
   void save_preferences_();
   void restore_preferences_();
@@ -228,8 +216,8 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 };
 
 struct MITPPreferences {
-  // Array stores a float setpoint for each climate mode up to DRY.
-  std::array<float, MAX_RECALL_MODE_INDEX + 1> modeRecallSetpoints = {0.0f};
+  float last_cool_setpoint = NAN;
+  float last_heat_setpoint = NAN;
 };
 
 }  // namespace mitsubishi_itp
