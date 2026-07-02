@@ -43,7 +43,7 @@ void HorizontalVanePositionSelect::receive_packet(const SettingsGetResponsePacke
       mitp_select_value_ = std::string("<");
       break;
     case SettingsSetRequestPacket::HV_CENTER:
-      mitp_select_value_ = std::string("");
+      mitp_select_value_ = std::string("|");
       break;
     case SettingsSetRequestPacket::HV_RIGHT:
       mitp_select_value_ = std::string(">");
