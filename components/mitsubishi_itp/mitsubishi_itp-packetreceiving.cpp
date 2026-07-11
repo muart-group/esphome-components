@@ -3,24 +3,6 @@
 namespace esphome {
 namespace mitsubishi_itp {
 
-// TODO: Move this to thermostat
-float MitsubishiUART::get_corrected_temp_for_packet_(const Packet &packet, const float temp) {
-  // if (!mhk_f_correction_ || packet.get_controller_association() != ControllerAssociation::THERMOSTAT ||
-  //     packet.get_source_bridge() == SourceBridge::NONE) {
-  //   return temp;
-  // }
-  // if (packet.get_source_bridge() == SourceBridge::THERMOSTAT) {
-  //   const float corrected_temp = mhk_temp_to_actual(temp);
-  //   ESP_LOGV(TAG, "Fahrenheit correction: %.1fC MHK to %.1fC actual for %.0fF", temp, corrected_temp,
-  //            round(corrected_temp * 9.0f / 5.0f + 32.0f));
-  //   return corrected_temp;
-  // }
-  // const float corrected_temp = mhk_temp_from_actual(temp);
-  // ESP_LOGV(TAG, "Fahrenheit correction: %.1fC actual to %.1fC MHK for %.0fF", temp, corrected_temp,
-  //          round(temp * 9.0f / 5.0f + 32.0f));
-  return temp;
-}
-
 // Packet Receivers
 void MitsubishiUART::receive_packet(const Packet &packet) {
   ESP_LOGI(TAG, "Generic unhandled packet type %x received.", packet.get_packet_type());
@@ -210,29 +192,6 @@ void MitsubishiUART::receive_packet(const StatusGetResponsePacket &packet) {
 
   publish_on_update_ |= (old_action != action);
 }
-// void MitsubishiUART::receive_packet(const RunStateGetResponsePacket &packet) {
-//   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());
-
-//   run_state_received_ = true;  // Set this since we received one
-
-//   // TODO: Not sure what AutoMode does yet
-// }
-
-// void MitsubishiUART::receive_packet(const SettingsSetRequestPacket &packet) {
-//   float packet_temp = packet.get_target_temp();
-//   float corrected_temp = get_corrected_temp_for_packet_(packet, packet_temp);
-
-//   if (packet_temp == corrected_temp) {
-//     ESP_LOGV(TAG, "Passing through inbound %s", packet.to_string().c_str());
-//     route_packet_(packet);
-//     alert_listeners_packet_(packet);
-//   } else {
-//     auto corrected_packet = SettingsSetRequestPacket(packet).set_target_temperature(corrected_temp);
-//     ESP_LOGV(TAG, "Passing through temperature-corrected inbound %s", corrected_packet.to_string().c_str());
-//     route_packet_(corrected_packet);
-//     alert_listeners_packet_(corrected_packet);
-//   }
-// }
 
 void MitsubishiUART::receive_packet(const RemoteTemperatureSetRequestPacket &packet) {
   ESP_LOGV(TAG, "Processing %s", packet.to_string().c_str());

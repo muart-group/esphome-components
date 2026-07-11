@@ -128,8 +128,6 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 #endif
 
  protected:
-  float get_corrected_temp_for_packet_(const Packet &packet, const float temp);
-
   void receive_packet(const Packet &packet) override;
   // Heatpump
   void receive_packet(const CapabilitiesResponsePacket &packet) override;
