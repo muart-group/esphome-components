@@ -243,11 +243,19 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
     target_temperature_low = thermostat_->mhk_fahrenheit_correction_is_on()
                                  ? mhk_temp_to_actual(packet.get_heat_setpoint())
                                  : packet.get_heat_setpoint();
+    if (thermostat_->mhk_fahrenheit_correction_is_on()) {
+      ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_heat_setpoint(),
+               mhk_temp_to_actual(packet.get_heat_setpoint()));
+    }
   }
   if (packet.get_flags() & 0x10) {
     target_temperature_high = thermostat_->mhk_fahrenheit_correction_is_on()
                                   ? mhk_temp_to_actual(packet.get_cool_setpoint())
                                   : packet.get_cool_setpoint();
+    if (thermostat_->mhk_fahrenheit_correction_is_on()) {
+      ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_cool_setpoint(),
+               mhk_temp_to_actual(packet.get_cool_setpoint()));
+    }
   }
 }
 
