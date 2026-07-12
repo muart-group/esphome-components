@@ -204,7 +204,7 @@ void MitsubishiUART::receive_packet(const RemoteTemperatureSetRequestPacket &pac
 }
 
 void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
-  if (packet.get_flags() & 0x08) {
+  if (packet.get_flags() & 0x04) {
     if (packet.get_auto_mode() > 0x00) {
       mode = climate::CLIMATE_MODE_HEAT_COOL;
       publish_on_update_ = true;
