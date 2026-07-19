@@ -205,7 +205,7 @@ void MitsubishiUART::temperature_source_report(const std::string &temperature_so
   temperature_reports_[temperature_source].timestamp = millis();
 
   for (const auto &pair : temperature_reports_) {
-    ESP_LOGD(TAG, "%s: %f , %is ago", pair.first.c_str(), pair.second.temperature,
+    ESP_LOGD(TAG, "%s: %f , %lus ago", pair.first.c_str(), pair.second.temperature,
              (millis() - pair.second.timestamp) / 1000);
   }
 

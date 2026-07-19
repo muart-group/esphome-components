@@ -127,7 +127,7 @@ void MitsubishiUART::receive_packet(const CurrentTempGetResponsePacket &packet) 
 
   // Use the presense of ThermostatStateUploadPacket as a proxy for an auto-capable thermostat being attached
   if (mode == climate::CLIMATE_MODE_HEAT_COOL &&
-      !itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() < 900000) {
+      !(itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() < 900000)) {
     if (itp_sys_state_.is_heatpump_on_heat() && current_temperature >= target_temperature_high) {
       // If we're on heat, but the temperature has hit the high-setpoint, switch to COOL
       ClimateCommand cmd = ClimateCommand();
@@ -242,9 +242,8 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
     }
   }
   if (packet.get_flags() & 0x08) {
-    float new_low = thermostat_->mhk_fahrenheit_correction_is_on()
-                                 ? mhk_temp_to_actual(packet.get_heat_setpoint())
-                                 : packet.get_heat_setpoint();
+    float new_low = thermostat_->mhk_fahrenheit_correction_is_on() ? mhk_temp_to_actual(packet.get_heat_setpoint())
+                                                                   : packet.get_heat_setpoint();
     if (thermostat_->mhk_fahrenheit_correction_is_on()) {
       ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_heat_setpoint(),
                mhk_temp_to_actual(packet.get_heat_setpoint()));
@@ -255,9 +254,8 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
     }
   }
   if (packet.get_flags() & 0x10) {
-    float new_high = thermostat_->mhk_fahrenheit_correction_is_on()
-                                  ? mhk_temp_to_actual(packet.get_cool_setpoint())
-                                  : packet.get_cool_setpoint();
+    float new_high = thermostat_->mhk_fahrenheit_correction_is_on() ? mhk_temp_to_actual(packet.get_cool_setpoint())
+                                                                    : packet.get_cool_setpoint();
     if (thermostat_->mhk_fahrenheit_correction_is_on()) {
       ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_cool_setpoint(),
                mhk_temp_to_actual(packet.get_cool_setpoint()));
