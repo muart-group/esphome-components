@@ -209,6 +209,7 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
       mode = climate::CLIMATE_MODE_HEAT_COOL;
       publish_on_update_ = true;
     } else {
+      // If the MHK2 is turning auto off, assume we're back in the last reported mode
       if (itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>()) {
         SettingsGetResponsePacket last_settings = *itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>();
         switch (last_settings.get_mode()) {
@@ -236,25 +237,34 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
             mode = climate::CLIMATE_MODE_OFF;
             break;
         }
+        publish_on_update_ = true;
       }
     }
   }
   if (packet.get_flags() & 0x08) {
-    target_temperature_low = thermostat_->mhk_fahrenheit_correction_is_on()
+    float new_low = thermostat_->mhk_fahrenheit_correction_is_on()
                                  ? mhk_temp_to_actual(packet.get_heat_setpoint())
                                  : packet.get_heat_setpoint();
     if (thermostat_->mhk_fahrenheit_correction_is_on()) {
       ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_heat_setpoint(),
                mhk_temp_to_actual(packet.get_heat_setpoint()));
     }
+    if (target_temperature_low != new_low) {
+      target_temperature_low = new_low;
+      publish_on_update_ = true;
+    }
   }
   if (packet.get_flags() & 0x10) {
-    target_temperature_high = thermostat_->mhk_fahrenheit_correction_is_on()
+    float new_high = thermostat_->mhk_fahrenheit_correction_is_on()
                                   ? mhk_temp_to_actual(packet.get_cool_setpoint())
                                   : packet.get_cool_setpoint();
     if (thermostat_->mhk_fahrenheit_correction_is_on()) {
       ESP_LOGD(TAG, "StateUpload Fahrenheit Conversion %f -> %f", packet.get_cool_setpoint(),
                mhk_temp_to_actual(packet.get_cool_setpoint()));
+    }
+    if (target_temperature_high != new_high) {
+      target_temperature_high = new_high;
+      publish_on_update_ = true;
     }
   }
 }
