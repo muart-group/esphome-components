@@ -4,20 +4,20 @@
             "name": "Linux",
             "includePath": [
                 "${default}",
-                "/workspaces/itp-packet/src/packets",
-                "/workspaces/itp-packet/src",
+                // "/workspaces/itp-packet/src/packets",
+                // "/workspaces/itp-packet/src",
                 "/workspaces/esphome/esphome/**",
-                "/esphome/.temp/platformio/packages/framework-espidf/**",
-                "/esphome/.temp/platformio/packages/framework-arduinoespressif8266/**"
+                "/root/.platformio/packages/framework-espidf/**",
+                "/root/.platformio/packages/framework-arduinoespressif8266/**"
             ],
             "defines": [
                 // "USE_ESP32"
                 "USE_HOST"
             ],
-            "compilerPath": "/usr/bin/clang-18",
+            "compilerPath": "/usr/bin/gcc",
             "cStandard": "c23",
             "cppStandard": "c++20",
-            "intelliSenseMode": "linux-clang-x64"
+            "intelliSenseMode": "linux-gcc-x64"
         }
     ],
     "version": 4
