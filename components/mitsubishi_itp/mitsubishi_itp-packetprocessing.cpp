@@ -401,10 +401,19 @@ void MitsubishiUART::handle_thermostat_state_download_request(const GetRequestPa
 
 #ifdef USE_TIME
   if (this->time_sync_) {
-    response.set_timestamp(this->time_source_->now().timestamp);
+    // The MHK2 expects this field as a bit-packed LOCAL date/time, not a raw UTC epoch:
+    //   ((year-2017)<<26)|(month<<22)|(day<<17)|(hour<<12)|(minute<<6)|second
+    // (set_timestamp() byte-swaps the value; the thermostat decodes it with the above layout.)
+    // Sending now().timestamp (a UTC epoch) makes the MHK2 clock wrong and drift. See issue #63.
+    auto t = this->time_source_->now();
+    int32_t encoded = ((int32_t) (t.year - 2017) << 26) | ((int32_t) t.month << 22) |
+                      ((int32_t) t.day_of_month << 17) | ((int32_t) t.hour << 12) |
+                      ((int32_t) t.minute << 6) | ((int32_t) t.second);
+    response.set_timestamp((time_t) encoded);
   } else {
     ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
-    response.set_timestamp(1704067200);  // 2024-01-01 00:00:00Z
+    // 2024-01-01 00:00:00, bit-packed to match the layout above.
+    response.set_timestamp((time_t) (((int32_t) (2024 - 2017) << 26) | ((int32_t) 1 << 22) | ((int32_t) 1 << 17)));
   }
 #endif
 
