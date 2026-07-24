@@ -210,7 +210,7 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
       publish_on_update_ = true;
     } else {
       // If the MHK2 is turning auto off, assume we're back in the last reported mode
-      if (itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>()) {
+      if (itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>(90000U)) {
         SettingsGetResponsePacket last_settings = *itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>();
         switch (last_settings.get_mode()) {
           case 0x02:  // Dry
