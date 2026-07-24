@@ -237,8 +237,11 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
             mode = climate::CLIMATE_MODE_OFF;
             break;
         }
-        publish_on_update_ = true;
+      } else {
+        // We have no idea what state the heat pump is in (it hasn't reported in 90+ seconds), just report state as off.
+        mode = climate::CLIMATE_MODE_OFF;
       }
+      publish_on_update_ = true;
     }
   }
   if (packet.get_flags() & 0x08) {
