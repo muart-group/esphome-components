@@ -212,31 +212,37 @@ void MitsubishiUART::receive_packet(const ThermostatStateUploadPacket &packet) {
       // If the MHK2 is turning auto off, assume we're back in the last reported mode
       if (itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>(90000U)) {
         SettingsGetResponsePacket last_settings = *itp_sys_state_.check_heatpump_cache<SettingsGetResponsePacket>();
-        switch (last_settings.get_mode()) {
-          case 0x02:  // Dry
-          case 0x0A:  // i-See Dry
-            mode = climate::CLIMATE_MODE_DRY;
-            break;
-          case 0x03:  // Cool
-          case 0x0B:  // i-See Cool
-          case 0x23:  // Auto-Cool (not sure this will ever be returned outside Kumo)
-            mode = climate::CLIMATE_MODE_COOL;
-            break;
-          case 0x01:  // Heat
-          case 0x09:  // i-See Heat
-          case 0x21:  // Auto-Heat (not sure this will ever be returned outside Kumo)
-            mode = climate::CLIMATE_MODE_HEAT;
-            break;
-          case 0x07:  // Fan
-            mode = climate::CLIMATE_MODE_FAN_ONLY;
-            break;
-          case 0x08:  // Auto
-            // Do nothing, this mode is fleeting
-            break;
-          default:
-            mode = climate::CLIMATE_MODE_OFF;
-            break;
+        if (last_settings.get_power()) {
+          switch (last_settings.get_mode()) {
+            case 0x02:  // Dry
+            case 0x0A:  // i-See Dry
+              mode = climate::CLIMATE_MODE_DRY;
+              break;
+            case 0x03:  // Cool
+            case 0x0B:  // i-See Cool
+            case 0x23:  // Auto-Cool (not sure this will ever be returned outside Kumo)
+              mode = climate::CLIMATE_MODE_COOL;
+              break;
+            case 0x01:  // Heat
+            case 0x09:  // i-See Heat
+            case 0x21:  // Auto-Heat (not sure this will ever be returned outside Kumo)
+              mode = climate::CLIMATE_MODE_HEAT;
+              break;
+            case 0x07:  // Fan
+              mode = climate::CLIMATE_MODE_FAN_ONLY;
+              break;
+            case 0x08:  // Auto
+              // Do nothing, this mode is fleeting
+              break;
+            default:
+              mode = climate::CLIMATE_MODE_OFF;
+              break;
+          }
+        } else {
+          // Power is off, mode is OFF
+          mode = climate::CLIMATE_MODE_OFF;
         }
+
       } else {
         // We have no idea what state the heat pump is in (it hasn't reported in 90+ seconds), just report state as off.
         mode = climate::CLIMATE_MODE_OFF;

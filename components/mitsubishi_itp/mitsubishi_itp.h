@@ -216,6 +216,7 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
 struct MITPPreferences {
   float last_cool_setpoint = NAN;
   float last_heat_setpoint = NAN;
+  bool auto_mode = false;
 };
 
 }  // namespace mitsubishi_itp

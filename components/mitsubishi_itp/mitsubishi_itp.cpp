@@ -29,7 +29,7 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
 
 // This value should be changed if the structure of the preferences object changes
 // to invalidate previously stored preferences.
-const uint MITP_PREFERENCE_VERSION = 2;
+const uint MITP_PREFERENCE_VERSION = 3;
 
 // Used to restore state of previous MITP-specific settings (like temperature source or pass-thru mode)
 // Most other climate-state is preserved by the heatpump itself and will be retrieved after connection
@@ -73,6 +73,15 @@ void MitsubishiUART::restore_preferences_() {
 
     ESP_LOGCONFIG(TAG, "Loaded previous setpoints. Low:%f High:%f", target_temperature_low, target_temperature_high);
 
+    if (prefs.auto_mode) {
+      mode = climate::ClimateMode::CLIMATE_MODE_HEAT_COOL;
+      if (thermostat_) {
+        thermostat_->set_auto_mode(0x01);  // Tell thermostat we're in auto
+        // Thermostat defaults auto_mode to off, so no need to set false on boot
+      }
+      ESP_LOGCONFIG(TAG, "Recovering to HEAT_COOL mode");
+    }
+
     do_publish_();  // Publish right away so HA shows temperatures
   }
 }
@@ -81,6 +90,7 @@ void MitsubishiUART::save_preferences_() {
   MITPPreferences prefs{};
   prefs.last_cool_setpoint = target_temperature_high;
   prefs.last_heat_setpoint = target_temperature_low;
+  prefs.auto_mode = (mode == climate::ClimateMode::CLIMATE_MODE_HEAT_COOL);
   preferences_.save(&prefs);
 }
 
