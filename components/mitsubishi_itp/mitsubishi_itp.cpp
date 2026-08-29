@@ -21,7 +21,9 @@ MitsubishiUART::MitsubishiUART(uart::UARTComponent *hp_uart_comp)
   // We do support this!
   climate_traits_.add_feature_flags(climate::CLIMATE_SUPPORTS_TWO_POINT_TARGET_TEMPERATURE);
 
-  target_temperature_high = 28.0;
+  // TODO: Unclear the purpose of this-- may need to readd if initial startup has issues.
+  // target_temperature_low = 17.0;
+  // target_temperature_high = 28.0;
 
   // Register to receive heatpump and thermostat packets
   itp_sys_state_.register_receiver(this);
