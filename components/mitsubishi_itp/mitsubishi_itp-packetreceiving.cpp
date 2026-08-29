@@ -68,6 +68,9 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
     case 0x23:  // Auto-Cool (not sure this will ever be returned outside Kumo)
       if (target_temperature_high != packet_temp) {
         target_temperature_high = packet_temp;
+        if (thermostat_) {
+          thermostat_->set_cooldry_setpoint(target_temperature_high);
+        }
         publish_on_update_ = true;
       }
       break;
@@ -76,6 +79,9 @@ void MitsubishiUART::receive_packet(const SettingsGetResponsePacket &packet) {
     case 0x21:  // Auto-Heat (not sure this will ever be returned outside Kumo)
       if (target_temperature_low != packet_temp) {
         target_temperature_low = packet_temp;
+        if (thermostat_) {
+          thermostat_->set_heat_setpoint(target_temperature_low);
+        }
         publish_on_update_ = true;
       }
       break;
