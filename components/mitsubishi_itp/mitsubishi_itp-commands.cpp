@@ -115,10 +115,16 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     ITP_LOGW(TAG, "Target temperatures must be at least 2°C apart!");
     if (high_changed) {
       target_temperature_low = target_temperature_high - 2;
+      if (thermostat_) {
+        thermostat_->set_heat_setpoint(target_temperature_low);
+      }
     } else {
       // In the event that they *both* changed, we'll still just bump the high temperature because trying to take the
       // mean or something might be weird.
       target_temperature_high = target_temperature_low + 2;
+      if (thermostat_) {
+        thermostat_->set_cooldry_setpoint(target_temperature_high);
+      }
     }
   }
 
