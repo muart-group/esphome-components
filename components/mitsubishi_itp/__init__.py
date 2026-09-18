@@ -1,6 +1,6 @@
 import esphome.codegen as cg
-from esphome.components import climate
 import esphome.config_validation as cv
+from esphome.components import climate
 from esphome.const import CONF_ID
 
 CODEOWNERS = ["@Sammy1Am", "@KazWolfe"]

@@ -32,12 +32,12 @@ class TemperatureSourceSelect : public MITPSelect {
 
  private:
   ESPPreferenceObject preferences_;
-  esphome::FixedVector<const char*> temp_select_options_ = {
+  esphome::FixedVector<const char *> temp_select_options_ = {
       TEMPERATURE_SOURCE_INTERNAL};  // Used to map strings to indexes for preference storage
 };
 
 class VanePositionSelect : public MITPSelect {
-  void process_packet(const SettingsGetResponsePacket &packet) override;
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:
   void control(const std::string &value) override {
@@ -49,7 +49,7 @@ class VanePositionSelect : public MITPSelect {
 };
 
 class HorizontalVanePositionSelect : public MITPSelect {
-  void process_packet(const SettingsGetResponsePacket &packet) override;
+  void receive_packet(const SettingsGetResponsePacket &packet) override;
 
  protected:
   void control(const std::string &value) override {

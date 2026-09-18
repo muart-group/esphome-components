@@ -2,3 +2,9 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Ignore build folders
+/.esphome/
+
+# Ignore folder for storing test-configs
+esp-config

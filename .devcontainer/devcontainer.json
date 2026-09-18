@@ -1,6 +1,6 @@
 {
   "name": "ESPHome Dev",
-  "image": "ghcr.io/esphome/esphome-lint",
+  "image": "ghcr.io/esphome/esphome:2026.7.0",
   "postCreateCommand": [
     "scripts/devcontainer-postcreate"
   ],
@@ -41,7 +41,7 @@
       ],
       "settings": {
         "python.languageServer": "Pylance",
-        "python.pythonPath": "/usr/bin/python3",
+        "python.defaultInterpreterPath": "/workspaces/esphome/venv/bin/python",
         "pylint.args": [
           "--rcfile=${workspaceFolder}/pyproject.toml"
         ],
@@ -55,7 +55,7 @@
         "[python]": {
           // VS will say "Value is not accepted" before building the devcontainer, but the warning
           // should go away after build is completed.
-          "editor.defaultFormatter": "ms-python.black-formatter"
+          "editor.defaultFormatter": "charliermarsh.ruff"
         },
         "editor.formatOnPaste": false,
         "editor.formatOnSave": true,

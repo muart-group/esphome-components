@@ -93,7 +93,7 @@ CONFIG_SCHEMA = cv.Schema(
         cv.Optional(select_designator): select_schema
         for select_designator, (
             select_schema,
-            _,
+            _
         ) in SELECTS.items()
     }
 )
@@ -106,8 +106,9 @@ async def to_code(config):
     # Register selects
     for select_designator, (
         _,
-        select_options,
+        select_options
     ) in SELECTS.items():
+        sel_opts = list(select_options) # Duplicate before append to avoid issues with multiple select definitions
         if select_conf := config.get(select_designator):
             select_component = cg.new_Pvariable(select_conf[CONF_ID])
             cg.add(getattr(mitp_component, "register_listener")(select_component))
@@ -121,12 +122,12 @@ async def to_code(config):
                         climate_entry.get(CONF_ID) == config[CONF_MITSUBISHI_ITP_ID]
                         and CONF_UART_THERMOSTAT in climate_entry):
                             # If so, add Thermostat as a temperature source option
-                            select_options.append(mitsubishi_itp_ns.TEMPERATURE_SOURCE_THERMOSTAT)
+                            sel_opts.append(mitsubishi_itp_ns.TEMPERATURE_SOURCE_THERMOSTAT)
 
                 # Add additional configured temperature sensors to the select menu
                 for ts_id in select_conf[CONF_SOURCES]:
                     ts = await cg.get_variable(ts_id)
-                    select_options.append(ts.get_name().c_str())
+                    sel_opts.append(ts.get_name().c_str())
                     # cg.add(
                     #     getattr(select_component, "register_temperature_source")(
                     #         ts.get_name().str()
@@ -162,5 +163,5 @@ async def to_code(config):
             await cg.register_parented(select_component, mitp_component)
 
             await select.register_select(
-                select_component, select_conf, options=select_options
+                select_component, select_conf, options=sel_opts
             )

@@ -2,6 +2,7 @@
 
 #include "esphome/components/sensor/sensor.h"
 #include "../mitp_listener.h"
+#include "itp_packetreceiver.h"
 
 using namespace itp_packet;
 
@@ -22,33 +23,33 @@ class MITPSensor : public MITPListener, public sensor::Sensor {
 };
 
 class CompressorFrequencySensor : public MITPSensor {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_compressor_frequency(); }
 };
 
 class InputWattsSensor : public MITPSensor {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_input_watts(); }
 };
 
 class LifetimeKwhSensor : public MITPSensor {
-  void process_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
+  void receive_packet(const StatusGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_lifetime_kwh(); }
 };
 
 class OutdoorTemperatureSensor : public MITPSensor {
-  void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
+  void receive_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_outdoor_temp(); }
 };
 
 class RuntimeSensor : public MITPSensor {
-  void process_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
+  void receive_packet(const CurrentTempGetResponsePacket &packet) { mitp_sensor_state_ = packet.get_runtime_minutes(); }
 };
 
 class ThermostatHumiditySensor : public MITPSensor {
-  void process_packet(const ThermostatSensorStatusPacket &packet) {
+  void receive_packet(const ThermostatSensorStatusPacket &packet) {
     mitp_sensor_state_ = packet.get_indoor_humidity_percent();
   }
 };
 
 class ThermostatTemperatureSensor : public MITPSensor {
-  void process_packet(const RemoteTemperatureSetRequestPacket &packet) {
+  void receive_packet(const RemoteTemperatureSetRequestPacket &packet) {
     if (!packet.get_use_internal_temperature()) {
       mitp_sensor_state_ = packet.get_remote_temperature();
       force_next_publish_ = true;  // Set true to force publish even if value the same

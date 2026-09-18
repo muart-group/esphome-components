@@ -1,5 +1,5 @@
-from esphome.components import binary_sensor
 import esphome.config_validation as cv
+from esphome.components import binary_sensor
 from esphome.core import coroutine
 
 from ...mitsubishi_itp import (
@@ -23,6 +23,9 @@ StandbySensor = mitsubishi_itp_ns.class_("StandbySensor", binary_sensor.BinarySe
 UsingInternalTemperatureSensor = mitsubishi_itp_ns.class_(
     "UsingInternalTemperatureSensor", binary_sensor.BinarySensor
 )
+ThermostatCommandReceivedSensor = mitsubishi_itp_ns.class_(
+    "ThermostatCommandReceivedSensor", binary_sensor.BinarySensor
+)
 
 # TODO Storing the registration function here seems weird, but I can't figure out how to determine schema type later
 SENSORS = dict[str, cv.Schema](
@@ -44,6 +47,9 @@ SENSORS = dict[str, cv.Schema](
         ),
         "using_internal_temperature": binary_sensor.binary_sensor_schema(
             UsingInternalTemperatureSensor, icon="mdi:thermometer-check"
+        ),
+        "thermostat_command_received": binary_sensor.binary_sensor_schema(
+            ThermostatCommandReceivedSensor, icon="mdi:thermometer-check"
         ),
     }
 )

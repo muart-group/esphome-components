@@ -1,5 +1,5 @@
-from esphome.components import sensor
 import esphome.config_validation as cv
+from esphome.components import sensor
 from esphome.const import (
     CONF_OUTDOOR_TEMPERATURE,
     DEVICE_CLASS_DURATION,
@@ -16,7 +16,7 @@ from esphome.const import (
     UNIT_KILOWATT_HOURS,
     UNIT_MINUTE,
     UNIT_PERCENT,
-    UNIT_WATT
+    UNIT_WATT,
 )
 from esphome.core import coroutine
 
@@ -55,7 +55,7 @@ ThermostatTemperatureSensor = mitsubishi_itp_ns.class_(
 )
 
 # TODO Storing the registration function here seems weird, but I can't figure out how to determine schema type later
-SENSORS = dict[str, cv.Schema](
+HEATPUMP_SENSORS = dict[str, cv.Schema](
     {
         "compressor_frequency": sensor.sensor_schema(
             CompressorFrequencySensor,
@@ -92,6 +92,11 @@ SENSORS = dict[str, cv.Schema](
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             accuracy_decimals=0,
         ),
+    }
+)
+
+THERMOSTAT_SENSORS = dict[str, cv.Schema](
+    {
         CONF_THERMOSTAT_HUMIDITY: sensor.sensor_schema(
             ThermostatHumiditySensor,
             unit_of_measurement=UNIT_PERCENT,
@@ -109,9 +114,12 @@ SENSORS = dict[str, cv.Schema](
     }
 )
 
+SENSORS = {**HEATPUMP_SENSORS, **THERMOSTAT_SENSORS}
+
 CONFIG_SCHEMA = sensors_to_config_schema(SENSORS)
 
 
 @coroutine
 async def to_code(config):
-    await sensors_to_code(config, SENSORS, sensor.register_sensor)
+    await sensors_to_code(config, HEATPUMP_SENSORS, sensor.register_sensor)
+    await sensors_to_code(config, THERMOSTAT_SENSORS, sensor.register_sensor)
