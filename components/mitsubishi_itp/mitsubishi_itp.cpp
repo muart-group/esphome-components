@@ -252,6 +252,7 @@ void MitsubishiUART::reset_filter_status() {
 }
 
 tm MitsubishiUART::get_timestruct() {
+#ifdef USE_TIME
   if (this->time_sync_) {
     esphome::ESPTime now = this->time_source_->now();
     return tm{
@@ -263,10 +264,11 @@ tm MitsubishiUART::get_timestruct() {
         .tm_year = now.year - 1900,
 
     };
-  } else {
-    ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time!");
-    return tm{.tm_mday = 1, .tm_mon = 0, .tm_year = 124};  // 2024-01-01 00:00:00Z
   }
+#endif
+  ESP_LOGW(TAG, "Time source is not synchronized. Cannot provide accurate time! (Make sure you have a time component "
+                "defined in your config)");
+  return tm{.tm_mday = 1, .tm_mon = 0, .tm_year = 124};  // 2024-01-01 00:00:00Z
 }
 
 }  // namespace mitsubishi_itp
