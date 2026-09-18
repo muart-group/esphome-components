@@ -135,8 +135,8 @@ async def to_code(config):
     try:
         cg.add_library(
             name="itp-packet",
-            repository="https://github.com/muart-group/itp-packet.git",
-            version="v1", # Follow the latest v1 release
+            repository="https://github.com/muart-group/itp-packet.git#v1", # Follow the latest v1 release
+            version="v1", # This doesn't appear to do anything, but is required
         )
     except ValueError as e:
         # If a library is manually defined in the ESPHome config it will "conflict"
