@@ -133,14 +133,17 @@ void MitsubishiUART::receive_packet(const CurrentTempGetResponsePacket &packet) 
 
   // Use the presense of ThermostatStateUploadPacket as a proxy for an auto-capable thermostat being attached
   if (mode == climate::CLIMATE_MODE_HEAT_COOL &&
-      !(itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() < 900000)) {
+      !(itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() &&
+        itp_sys_state_.get_thermostat_cache_age<ThermostatStateUploadPacket>() < 900000)) {
     if (itp_sys_state_.is_heatpump_on_heat() && current_temperature >= target_temperature_high) {
+      ESP_LOGV(TAG, "No enhanced thermostat detected, changing over to COOL");
       // If we're on heat, but the temperature has hit the high-setpoint, switch to COOL
       ClimateCommand cmd = ClimateCommand();
       cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
           .target_temperature_degC(target_temperature_high);
       heatpump_.send_command(cmd);
     } else if (itp_sys_state_.is_heatpump_on_cool() && current_temperature <= target_temperature_low) {
+      ESP_LOGV(TAG, "No enhanced thermostat detected, changing over to HEAT");
       // If we're on cool, but the temperature has hit the low-setpoint, switch to HEAT
       ClimateCommand cmd = ClimateCommand();
       cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
