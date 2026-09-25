@@ -140,9 +140,13 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
       break;
     case climate::CLIMATE_MODE_HEAT_COOL:
       if (current_temperature <= target_temperature_low) {
-        cmd.target_temperature_degC(target_temperature_low);
+        // Set the mode immediately so that we don't end up with the wrong mode/target combo
+        cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
+            .target_temperature_degC(target_temperature_low);
       } else {
-        cmd.target_temperature_degC(target_temperature_high);
+        // Set the mode immediately so that we don't end up with the wrong mode/target combo
+        cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
+            .target_temperature_degC(target_temperature_high);
       }
       break;
     default:
