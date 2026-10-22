@@ -100,7 +100,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  /* Based on our mode (just updated above), set pass the appropriate command.
+  /* Based on our mode (just updated above), send the appropriate command.
      Because we're tracking two targets now, any mode change potentially requires
      a target command in case the underlying mode switched on the heat pump. Set point
      changes only *require* a mode command in some HEAT_COOL circumstances, but for consistency
@@ -125,7 +125,9 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
         // pump mode (and therefore target) is undefined
 
         // If it's currently on heat or cool, just reiterate the current mode
-        // and pass on the appropriate (maybe just updated) target
+        // and pass on the appropriate (maybe just updated) target. NOTE: This could potentially
+        // read a value from an "OFF" heatpump since it retains its mode, and it would resume
+        // in whatever mode it was last in rather than using the midpoint.
         if (itp_sys_state_.is_heatpump_on_cool()){
           cmd.power(true)
             .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
