@@ -3,6 +3,7 @@ import esphome.config_validation as cv
 from esphome.components import select, sensor
 from esphome.const import (
     CONF_ID,
+    CONF_NAME,
     CONF_TIMEOUT,
     ENTITY_CATEGORY_CONFIG,
     ENTITY_CATEGORY_NONE,
@@ -91,12 +92,18 @@ CONFIG_SCHEMA = cv.Schema(
 ).extend(
     {
         cv.Optional(select_designator): select_schema
-        for select_designator, (
-            select_schema,
-            _
-        ) in SELECTS.items()
+        for select_designator, (select_schema, _) in SELECTS.items()
     }
 )
+
+
+def get_sensor_name_from_conf(sensor_id) -> str:
+    """Return the configured name for a sensor, or its raw id if no name specified."""
+    for entry in CORE.config.get("sensor", []):
+        entry_id = entry.get(CONF_ID)
+        if entry_id is not None and entry_id.id == sensor_id.id:
+            return entry.get(CONF_NAME) or sensor_id.id
+    return sensor_id.id
 
 
 @coroutine
@@ -104,11 +111,10 @@ async def to_code(config):
     mitp_component = await cg.get_variable(config[CONF_MITSUBISHI_ITP_ID])
 
     # Register selects
-    for select_designator, (
-        _,
-        select_options
-    ) in SELECTS.items():
-        sel_opts = list(select_options) # Duplicate before append to avoid issues with multiple select definitions
+    for select_designator, (_, select_options) in SELECTS.items():
+        sel_opts = list(
+            select_options
+        )  # Duplicate before append to avoid issues with multiple select definitions
         if select_conf := config.get(select_designator):
             select_component = cg.new_Pvariable(select_conf[CONF_ID])
             cg.add(getattr(mitp_component, "register_listener")(select_component))
@@ -117,17 +123,23 @@ async def to_code(config):
                 # Check to see if the associated climate has a thermostat defined
                 if "climate" in CORE.config:
                     for climate_entry in CORE.config["climate"]:
-                        if (isinstance(climate_entry, dict) and
-                        CONF_ID in climate_entry and
-                        climate_entry.get(CONF_ID) == config[CONF_MITSUBISHI_ITP_ID]
-                        and CONF_UART_THERMOSTAT in climate_entry):
+                        if (
+                            isinstance(climate_entry, dict)
+                            and CONF_ID in climate_entry
+                            and climate_entry.get(CONF_ID)
+                            == config[CONF_MITSUBISHI_ITP_ID]
+                            and CONF_UART_THERMOSTAT in climate_entry
+                        ):
                             # If so, add Thermostat as a temperature source option
-                            sel_opts.append(mitsubishi_itp_ns.TEMPERATURE_SOURCE_THERMOSTAT)
+                            sel_opts.append(
+                                mitsubishi_itp_ns.TEMPERATURE_SOURCE_THERMOSTAT
+                            )
 
                 # Add additional configured temperature sensors to the select menu
                 for ts_id in select_conf[CONF_SOURCES]:
                     ts = await cg.get_variable(ts_id)
-                    sel_opts.append(ts.get_name().c_str())
+                    ts_name = get_sensor_name_from_conf(ts_id)
+                    sel_opts.append(ts_name)
                     # cg.add(
                     #     getattr(select_component, "register_temperature_source")(
                     #         ts.get_name().str()
@@ -137,7 +149,7 @@ async def to_code(config):
                         getattr(ts, "add_on_state_callback")(
                             # TODO: Is there anyway to do this without a raw expression?
                             cg.RawExpression(
-                                f"[](float v){{{getattr(mitp_component, 'temperature_source_report')}({ts.get_name()}, v);}}"
+                                f"[](float v){{{getattr(mitp_component, 'temperature_source_report')}({cg.safe_exp(ts_name)}, v);}}"
                             )
                         )
                     )
