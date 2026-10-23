@@ -26,8 +26,8 @@ const uint8_t MITP_MIN_TEMP = 16;  // Degrees C
 const uint8_t MITP_MAX_TEMP = 31;  // Degrees C
 const float MITP_TEMPERATURE_STEP = 0.5;
 
-inline const char *TEMPERATURE_SOURCE_INTERNAL = "Internal";
-inline const char *TEMPERATURE_SOURCE_THERMOSTAT = "Thermostat";
+inline constexpr char TEMPERATURE_SOURCE_INTERNAL[] = "Internal";
+inline constexpr char TEMPERATURE_SOURCE_THERMOSTAT[] = "Thermostat";
 
 class UARTComponentByteProvider : public ITPByteProvider {
  public:

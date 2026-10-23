@@ -42,51 +42,6 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  // Temperature
-
-  // Mode
-
-  if (call.get_mode().has_value()) {
-    mode = call.get_mode().value();
-
-    switch (call.get_mode().value()) {
-      case climate::CLIMATE_MODE_HEAT_COOL:
-        if (current_temperature > target_temperature_low + 1) {
-          cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_COOL);
-        } else {
-          cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_HEAT);
-        }
-        break;
-      case climate::CLIMATE_MODE_COOL:
-        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_COOL);
-        break;
-      case climate::CLIMATE_MODE_HEAT:
-        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_HEAT);
-        break;
-      case climate::CLIMATE_MODE_FAN_ONLY:
-        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_FAN);
-        break;
-      case climate::CLIMATE_MODE_DRY:
-        cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_DRY);
-        break;
-      case climate::CLIMATE_MODE_OFF:
-      default:
-        cmd.power(false);
-        break;
-    }
-
-    // Tell thermostat if we're in auto mode or not
-    if (mode == climate::CLIMATE_MODE_HEAT_COOL) {
-      if (thermostat_) {
-        thermostat_->set_auto_mode(0x01);  // 0x01 for now (is 0x02 the other of heat vs cool?)
-      }
-    } else {
-      if (thermostat_) {
-        thermostat_->set_auto_mode(0x00);  // 0x01 for now (is 0x02 the other of heat vs cool?)
-      }
-    }
-  }
-
   // Target Temperature
 
   // Home Assistant tends to send both low and high targets even if only one has changed, so we need to track which
@@ -128,29 +83,96 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  // Based on our mode (just updated above), set the target temperature on the heatpump
+  // Mode
+
+  if (call.get_mode().has_value()) {
+    mode = call.get_mode().value();
+
+    // Tell thermostat if we're in auto mode or not
+    if (mode == climate::CLIMATE_MODE_HEAT_COOL) {
+      if (thermostat_) {
+        thermostat_->set_auto_mode(0x01);  // 0x01 for now (is 0x02 the other of heat vs cool?)
+      }
+    } else {
+      if (thermostat_) {
+        thermostat_->set_auto_mode(0x00);
+      }
+    }
+  }
+
+  /* Based on our mode (just updated above), send the appropriate command.
+     Because we're tracking two targets now, any mode change potentially requires
+     a target command in case the underlying mode switched on the heat pump. Set point
+     changes only *require* a mode command in some HEAT_COOL circumstances, but for consistency
+     since the command may or may not have also contained a mode switch, we'll set mode
+     every time.
+  */
 
   switch (mode) {
-    case climate::CLIMATE_MODE_COOL:
-    case climate::CLIMATE_MODE_DRY:
-      cmd.target_temperature_degC(target_temperature_high);
-      break;
-    case climate::CLIMATE_MODE_HEAT:
-      cmd.target_temperature_degC(target_temperature_low);
-      break;
     case climate::CLIMATE_MODE_HEAT_COOL:
-      if (current_temperature <= target_temperature_low + 1) {
-        // Set the mode immediately so that we don't end up with the wrong mode/target combo
-        cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
-            .target_temperature_degC(target_temperature_low);
+      // If we've just changed to (or already were in) HEAT_COOL and the
+      // current_temperature calls for immediate action, do that.
+      if (current_temperature >= target_temperature_high) {
+        cmd.power(true)
+          .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
+          .target_temperature_degC(target_temperature_high);
+      } else if (current_temperature <= target_temperature_low) {
+        cmd.power(true)
+          .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
+          .target_temperature_degC(target_temperature_low);
       } else {
-        // Set the mode immediately so that we don't end up with the wrong mode/target combo
-        cmd.mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
+        // Current temperature is somewhere in between setpoints so current heat
+        // pump mode (and therefore target) is undefined
+
+        // If it's currently on heat or cool, just reiterate the current mode
+        // and pass on the appropriate (maybe just updated) target. NOTE: This could potentially
+        // read a value from an "OFF" heatpump since it retains its mode, and it would resume
+        // in whatever mode it was last in rather than using the midpoint.
+        if (itp_sys_state_.is_heatpump_on_cool()){
+          cmd.power(true)
+            .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
             .target_temperature_degC(target_temperature_high);
+        } else if (itp_sys_state_.is_heatpump_on_heat()) {
+          cmd.power(true)
+            .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
+            .target_temperature_degC(target_temperature_low);
+        } else {
+          // Otherwise set the mode and target based on the midpoint
+          const float target_temperature_midpoint = (target_temperature_low + target_temperature_high)/2;
+          if (current_temperature >= target_temperature_midpoint) {
+            cmd.power(true)
+              .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_COOL)
+              .target_temperature_degC(target_temperature_high);
+          } else {
+            cmd.power(true)
+            .mode(itp_packet::SettingsSetRequestPacket::ModeByte::MODE_BYTE_HEAT)
+            .target_temperature_degC(target_temperature_low);
+          }
+        }
       }
       break;
+    case climate::CLIMATE_MODE_COOL:
+      cmd.power(true)
+        .mode(SettingsSetRequestPacket::MODE_BYTE_COOL)
+        .target_temperature_degC(target_temperature_high);
+      break;
+    case climate::CLIMATE_MODE_HEAT:
+      cmd.power(true)
+        .mode(SettingsSetRequestPacket::MODE_BYTE_HEAT)
+        .target_temperature_degC(target_temperature_low);
+      break;
+    case climate::CLIMATE_MODE_FAN_ONLY:
+      cmd.power(true).mode(SettingsSetRequestPacket::MODE_BYTE_FAN);
+      // Don't change target as its a noop in this mode
+      break;
+    case climate::CLIMATE_MODE_DRY:
+      cmd.power(true)
+        .mode(SettingsSetRequestPacket::MODE_BYTE_DRY)
+        .target_temperature_degC(target_temperature_high);
+      break;
+    case climate::CLIMATE_MODE_OFF:
     default:
-      // Other modes don't use target temperature, just leave it where it was
+      cmd.power(false);
       break;
   }
 
