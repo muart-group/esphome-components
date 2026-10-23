@@ -4,13 +4,13 @@
 
 Check out the documentation to get started at [muart-group.github.io](https://muart-group.github.io/).
 
-Aspirationally, the `main` branch will contain stable code ready to be merged to ESPHome or elsewhere.  The `dev` branch will contain more actively developed code, but should still be relatively stable.
+This component relies heavily on the [itp-packet](https://github.com/muart-group/itp-packet) library to handle the IT Protocol communications and state.
+
+The `main` branch will (aspirationally) contain stable code, and new development will happen on the `v*` branches (`v2` at time of writing).
 
 Issues with the MITP component should be reported in this repository.
 
-The separate [itp-packet](https://github.com/muart-group/itp-packet) repository has been created for the logic of decoding and handling IT Protocol packets.
-
-[This PR](https://github.com/esphome/esphome/pull/7289) is out of date enough that it's unlikely to be merged in its current state. If there is any renewed interest from the ESPHome community for merging this component we can work on a fresh PR (or updating the existing one).
+[Previous attempts](https://github.com/esphome/esphome/pull/7289) to merge this code into ESPHome have been unsuccessful, and the focus of this project is now on user experience and stable behavior rather than attempting to merge with ESPHome. (As much of the ITP logic has been moved to `itp-packet`, it should be relatively easy to leverage the work here in a non-ESPHome ecosystem)
 
 ## Getting started with development
 
@@ -27,23 +27,14 @@ external_components:
 
 To help keep things a little more organized and easy to understand, some quick notes on the architecture:
 
-### ITPPacketReader
-A virtual class with logic for receiving and parsing ITP Packets.
+### ITPByteProvider
+The ITP Packet library needs bytes to parse, and the implementation of this interface here provides those using ESPHome's UART component.
 
-### Heatpump
-`extends ITPPacketReader`
+### ITPPacketReceiver 
+The ITP Packet library sends parsed packets via this interface, and the implementation here (mostly in `mitsubishi_itp-packetreceiving.cpp`) handles reading those packets and passing that information on to ESPHome / Home Assistant.
 
-Represents a UART-connected ITP Heatpump. Responsible for sending and receiving packets to/from the heatpump, and tracking the heatpump's current state.
+### ITPSystemState 
+This class helps manage the overall state of the ITP system primarily by caching the latest received packets and providing some convenience methods to track whether a heat pump is connected.
 
-### Thermostat
-`extends ITPPacketReader`
-
-Represents a UART-connected ITP Thermostat (e.g. MHK2). Responsible for receiving packets from the thermostat and sending them to the [Heatpump](#heatpump) for
-
-### HeatpumpSubscriber
-
-An interface for classes that want updates from the Heatpump (changes in Heatpump state will be sent via this)
-
-### ThermostatSubscriber
-
-An interface for classes that want updates from the Thermostat. Unlike the heatpump there may not be a stored state for the thermostat, but information about temperature and humidity will be reported.
+### Heatpump and Thermostat
+These classes represent the ITP heat pump and thermostat and are used to change settings to communicate with equipment. These are implemented in the `itp-packet` library, so more details are available there.
