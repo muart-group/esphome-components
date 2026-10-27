@@ -125,9 +125,19 @@ void MitsubishiUART::receive_packet(const CurrentTempGetResponsePacket &packet) 
 
   float packet_temp = packet.get_current_temp();
 
-  // This will be the same as the remote temperature if we're using a remote sensor, otherwise the internal temp
+  // It appears that some heat pumps will forget that we told them to use an
+  // external temperature when they're switched off, and report their internal
+  // temperature. Ignore their output in this case.
+  if (mode == climate::CLIMATE_MODE_OFF && !temperature_source_timeout_ &&
+      selected_temperature_source_ != TEMPERATURE_SOURCE_INTERNAL) {
+    const auto report = temperature_reports_.find(selected_temperature_source_);
+    if (report != temperature_reports_.end() && !isnan(report->second.temperature)) {
+      packet_temp = report->second.temperature;
+    }
+  }
+
   const float old_current_temperature = current_temperature;
-  current_temperature = packet.get_current_temp();
+  current_temperature = packet_temp;
 
   publish_on_update_ |= (old_current_temperature != current_temperature);
 
