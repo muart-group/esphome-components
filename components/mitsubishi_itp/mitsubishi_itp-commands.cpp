@@ -45,7 +45,7 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
   // Target Temperature
 
   // Home Assistant tends to send both low and high targets even if only one has changed, so we need to track which
-  // changed to bump the other if they're too close
+  // changed to know which one to keep if they're too close
   bool low_changed = false;
   bool high_changed = false;
 
@@ -66,17 +66,25 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
     }
   }
 
-  if (target_temperature_high - target_temperature_low < 2) {
-    ITP_LOGW(TAG, "Target temperatures must be at least 2°C apart!");
-    if (high_changed) {
-      target_temperature_low = target_temperature_high - 2;
+  // Only HEAT_COOL uses both setpoints, so only it keeps them apart. Without an enhanced MHK2, MITP's own changeover
+  // (CurrentTempGetResponsePacket handler) switches at each setpoint, so the gap is its deadband. Other modes store
+  // both as sent, even equal or inverted, like ESPHome's thermostat. `mode` is still the mode before this call here.
+  const climate::ClimateMode new_mode = call.get_mode().has_value() ? call.get_mode().value() : mode;
+  if (new_mode == climate::CLIMATE_MODE_HEAT_COOL &&
+      target_temperature_high - target_temperature_low < MITP_HEAT_COOL_MIN_SETPOINT_GAP) {
+    if (heat_cool_keeps_high_setpoint_(mode, low_changed, high_changed)) {
+      ITP_LOGW(TAG, "HEAT_COOL setpoints must be %.1f°C apart: keeping high %.1f, moving low %.1f -> %.1f",
+               MITP_HEAT_COOL_MIN_SETPOINT_GAP, target_temperature_high, target_temperature_low,
+               target_temperature_high - MITP_HEAT_COOL_MIN_SETPOINT_GAP);
+      target_temperature_low = target_temperature_high - MITP_HEAT_COOL_MIN_SETPOINT_GAP;
       if (thermostat_) {
         thermostat_->set_heat_setpoint(target_temperature_low);
       }
     } else {
-      // In the event that they *both* changed, we'll still just bump the high temperature because trying to take the
-      // mean or something might be weird.
-      target_temperature_high = target_temperature_low + 2;
+      ITP_LOGW(TAG, "HEAT_COOL setpoints must be %.1f°C apart: keeping low %.1f, moving high %.1f -> %.1f",
+               MITP_HEAT_COOL_MIN_SETPOINT_GAP, target_temperature_low, target_temperature_high,
+               target_temperature_low + MITP_HEAT_COOL_MIN_SETPOINT_GAP);
+      target_temperature_high = target_temperature_low + MITP_HEAT_COOL_MIN_SETPOINT_GAP;
       if (thermostat_) {
         thermostat_->set_cooldry_setpoint(target_temperature_high);
       }
@@ -182,6 +190,43 @@ void MitsubishiUART::control(const climate::ClimateCall &call) {
   // Publish state and any sensor changes (shouldn't be any a result of this function, but
   // since they lazy-publish, no harm in trying)
   do_publish_();
+}
+
+bool MitsubishiUART::heat_cool_keeps_high_setpoint_(const climate::ClimateMode prev_mode, const bool low_changed,
+                                                    const bool high_changed) {
+  // If the call changed just one setpoint (e.g. dragging one handle of Home Assistant's HEAT_COOL card), keep it.
+  if (low_changed != high_changed) {
+    return high_changed;
+  }
+
+  // Switching into HEAT_COOL: keep the setpoint the previous mode was using, so entering HEAT_COOL doesn't move the
+  // target the heat pump was just working towards. (ESPHome's thermostat does the same, but only checks for COOL.)
+  switch (prev_mode) {
+    case climate::CLIMATE_MODE_HEAT:
+      return false;
+    case climate::CLIMATE_MODE_COOL:
+    case climate::CLIMATE_MODE_DRY:
+      return true;
+    case climate::CLIMATE_MODE_OFF:
+    case climate::CLIMATE_MODE_FAN_ONLY:
+      // Neither setpoint is in use, so keep the one for the heat pump's last reported mode. When the unit is off, its
+      // settings report still holds the mode it last ran in. In fan mode it reports fan instead, so coming from
+      // FAN_ONLY this only helps if the unit hasn't reported since switching to fan. is_heatpump_on_heat/cool() don't
+      // recognize dry or the i-See/Kumo variants yet, so those fall through to the previous behavior.
+      if (itp_sys_state_.is_heatpump_on_heat()) {
+        return false;
+      }
+      if (itp_sys_state_.is_heatpump_on_cool()) {
+        return true;
+      }
+      break;
+    default:
+      // Already in HEAT_COOL (or an unknown mode): fall through to the previous behavior
+      break;
+  }
+
+  // Previous behavior: keep the high setpoint if it changed (so also when both changed), otherwise keep the low one.
+  return high_changed;
 }
 
 bool MitsubishiUART::select_vane_position(const std::string &state) {
