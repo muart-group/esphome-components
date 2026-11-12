@@ -25,6 +25,8 @@ static constexpr char TAG[] = "mitsubishi_itp";
 const uint8_t MITP_MIN_TEMP = 16;  // Degrees C
 const uint8_t MITP_MAX_TEMP = 31;  // Degrees C
 const float MITP_TEMPERATURE_STEP = 0.5;
+// Minimum low/high setpoint gap in HEAT_COOL, where it's the deadband for MITP's own heat/cool changeover
+const float MITP_HEAT_COOL_MIN_SETPOINT_GAP = 2.0;  // Degrees C
 
 inline constexpr char TEMPERATURE_SOURCE_INTERNAL[] = "Internal";
 inline constexpr char TEMPERATURE_SOURCE_THERMOSTAT[] = "Thermostat";
@@ -206,6 +208,10 @@ class MitsubishiUART : public PollingComponent, public climate::Climate, public 
       420000;  // 7min default, some heat pumps revert on their own after 10min, some ~60seconds
   uint32_t temperature_source_echo_ms_ = 0;              // 0 = off by default
   uint32_t temperature_source_echo_last_timestamp_ = 0;  // Timestamp of last sent temperature
+
+  // When a call leaves HEAT_COOL's setpoints closer than MITP_HEAT_COOL_MIN_SETPOINT_GAP, decides which one to keep.
+  // prev_mode is the mode before the call. Returns true to keep the high (cool) setpoint and move the low one.
+  bool heat_cool_keeps_high_setpoint_(climate::ClimateMode prev_mode, bool low_changed, bool high_changed);
 
   // Preferences
   void save_preferences_();
